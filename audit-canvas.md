@@ -742,7 +742,15 @@ Because the auditor is stateless, the repository is responsible for preserving a
 
 #### Manifest drift check (mandatory at Tier ≥ 1)
 
-In enforcement mode, the auditor MUST detect gross mismatch between `audit.manifest.yaml` declarat
+In enforcement mode, the auditor MUST detect gross mismatch between `audit.manifest.yaml` declarations and observed code structure.
+
+* The auditor MUST NOT infer intent or rewrite the manifest.
+* The auditor MUST emit `MANIFEST_DRIFT` with evidence when:
+
+  * Declared component paths no longer exist, OR
+  * Significant new entry points or dependencies appear outside declared scope
+
+Severity defaults to Medium and MUST escalate based on affected component criticality.
 
 The AI MUST compute deltas by comparing the current run to `audit/latest.json`.
 
