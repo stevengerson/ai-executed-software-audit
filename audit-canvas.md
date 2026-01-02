@@ -1,8 +1,9 @@
 # Comprehensive Platform Audit Canvas
 
-**Zero-Team / Rotating-Maintainer Edition — AI-Executed, Periodic Audit (British English)**
+This document defines an end-to-end audit instruction set designed to be executed periodically by an automated Auditor Agent against a codebase and its associated artefacts.
+It is a deterministic audit framework with an LLM acting as a bounded execution engine, not an authority.
 
-This canvas defines a **gold-standard, end-to-end audit instruction set** designed to be **executed periodically by an AI against a codebase and its associated artefacts**.
+Authority derives exclusively from declared repository artefacts and deterministic detectors.
 
 It assumes:
 
@@ -17,11 +18,13 @@ The system must therefore be:
 * **Safe to change by unfamiliar engineers**
 * **Resilient to long-term entropy**
 
-Architecture, documentation, constraints, and runtime signals must replace people.
+Architecture, documentation, constraints, and runtime signals must replace tribal knowledge.
 
 ---
 
-## Guiding Principles (AI-Enforced)
+## Guiding Principles (Enforced)
+
+These principles constrain the auditor: it may execute checks and draft artefacts, but it MUST NOT introduce policy or infer authority.
 
 1. **What cannot be checked mechanically is treated as risk**.
 2. **Explicit structure beats inferred intent**.
@@ -42,7 +45,11 @@ This audit operates under one of two mutually exclusive modes:
 * **Bootstrap (Drafting) mode** — non-authoritative discovery
 * **Normal (Enforcement) mode** — authoritative, deterministic audit
 
+In Enforcement mode, outputs are authoritative only to the extent they are backed by declared artefacts and deterministic proof.
+
 The active mode is determined mechanically based on the presence or absence of authoritative artefacts.
+
+**Precedence rule (normative):** If bootstrap entry conditions are met (see §0.6), the audit operates in **Bootstrap (Drafting) mode** regardless of any declared or default tier. In Bootstrap mode, enforcement checks MUST NOT run and hard-fail conditions MUST NOT be evaluated.
 
 ---
 
@@ -54,11 +61,11 @@ The active mode is determined mechanically based on the presence or absence of a
 
 Accordingly:
 
-* The AI executes periodically (e.g. monthly)
+* The Auditor executes periodically (e.g. monthly)
 * The repository is the sole source of historical state
 * Absence of required state reduces usefulness and is reported explicitly
 
-**AI rule:** The audit MUST read `audit/latest.json` when present. It MUST read `audit/open_findings.yaml` when present, but MUST NOT assume it exists.
+**Auditor rule:** The auditor MUST read `audit/latest.json` when present. It MUST read `audit/open_findings.yaml` when present, but MUST NOT assume it exists.
 
 ### 0.2 Audit objective
 
@@ -84,7 +91,7 @@ If the tier is missing:
 * Default to Tier 0
 * Emit a Medium-severity finding
 
-**AI rule:** Only checks at or below the declared audit tier may produce hard failures.
+**Auditor rule:** Only checks at or below the declared audit tier may produce hard failures.
 
 ### 0.3 Scope and exclusions
 
@@ -106,7 +113,7 @@ Every finding MUST include:
 
 ### 0.5 Structural accountability (replaces ownership)
 
-For every component, the AI must be able to identify:
+For every component, the auditor must be able to identify:
 
 * Responsibility boundary
 * Forbidden responsibilities
@@ -177,9 +184,11 @@ The auditor MUST generate all of the following:
 
 If the auditor has write access, it MUST write bootstrap artefacts to the declared paths.
 
+Draft outputs are non-authoritative and exist only to be promoted (renamed/moved) by humans.
+
 If it lacks write access, it MUST emit the full content of each artefact inline in the final report, with explicit path labels and stable delimiters.
 
-#### Draft content requirements (mandatory) (mandatory)
+#### Draft content requirements (mandatory)
 
 Every inferred field in bootstrap outputs MUST include:
 
@@ -234,13 +243,11 @@ File renaming constitutes human acceptance.
 
 ---
 
----
-
 ## 1) System Intent and Critical Journeys
 
 ### 1.1 System intent
 
-The AI must locate a canonical declaration of:
+the auditor must locate a canonical declaration of:
 
 * System purpose
 * Primary user goals
@@ -298,7 +305,7 @@ The auditor MUST NOT infer expectations from configuration values or runtime beh
 
 ### 2.1 Component inventory
 
-The AI must enumerate all deployable units and classify them by:
+the auditor must enumerate all deployable units and classify them by:
 
 * Type
 * Runtime
@@ -306,7 +313,7 @@ The AI must enumerate all deployable units and classify them by:
 
 ### 2.2 Dependency topology
 
-The AI must extract and diff:
+the auditor must extract and diff:
 
 * Internal dependencies
 * External integrations
@@ -314,7 +321,7 @@ The AI must extract and diff:
 
 ### 2.3 Trust and tenant boundaries
 
-The AI must identify:
+the auditor must identify:
 
 * External trust boundaries
 * Internal trust boundaries
@@ -326,7 +333,7 @@ The AI must identify:
 
 ### 3.1 Entry-point inventory
 
-The AI must enumerate:
+the auditor must enumerate:
 
 * HTTP routes
 * Event consumers
@@ -337,13 +344,13 @@ The AI must enumerate:
 
 Static tracing MUST be constrained and deterministic.
 
-The AI MUST only trace within **declared trace anchors**, such as:
+the auditor must only trace within **declared trace anchors**, such as:
 
 * Entry-point handlers declared in the manifest
 * Explicit annotations (language-specific)
 * Declared service/orchestrator modules
 
-**AI rule:**
+**Auditor rule:**
 
 * The auditor MUST NOT attempt whole-program tracing.
 * Tracing is limited to a bounded depth and declared boundaries.
@@ -362,7 +369,7 @@ The manifest MAY declare:
 * Orchestrator module locations (allowed to touch DB + network)
 * Domain module locations (forbidden from DB + network)
 
-**AI rule:**
+**Auditor rule:**
 
 * DB + external network access in forbidden locations is High severity.
 * Access in declared orchestrator locations is allowed.
@@ -378,7 +385,7 @@ The manifest MAY declare:
 * `allowed_edges` (rules, e.g. same or lower layer)
 * `edge_exceptions` (time-bounded, explicit)
 
-**AI rule:**
+**Auditor rule:**
 
 * Only declared graph rules may be enforced.
 * Undeclared graph policies MUST NOT be inferred.
@@ -395,7 +402,7 @@ The manifest MAY declare:
 * `policies.http_client.wrapper_module`
 * `policies.validation.framework`
 
-**AI rule:**
+**Auditor rule:**
 
 * The auditor checks for usage of the declared primitive.
 * Absence of a declared primitive disables the uniformity check (SKIPPED).
@@ -407,7 +414,7 @@ The manifest MAY declare:
 
 ### 5.1 Data ownership and access
 
-The AI must verify:
+the auditor must verify:
 
 * Single write owner per data store
 * Declared read access
@@ -415,7 +422,7 @@ The AI must verify:
 
 ### 5.2 Integrity and consistency
 
-The AI must detect:
+the auditor must detect:
 
 * Transaction boundaries
 * Idempotency mechanisms
@@ -423,7 +430,7 @@ The AI must detect:
 
 ### 5.3 Data lifecycle
 
-For each data store, the AI must locate declarations for:
+For each data store, the auditor must locate declarations for:
 
 * Classification
 * Retention
@@ -432,7 +439,7 @@ For each data store, the AI must locate declarations for:
 
 ### 5.4 Backup, restore, and disaster recovery
 
-The AI must flag absence of:
+the auditor must flag absence of:
 
 * Declared RPO/RTO
 * Backup configuration artefacts
@@ -443,7 +450,7 @@ The AI must flag absence of:
 
 ### 6.1 Logging
 
-The AI must verify:
+the auditor must verify:
 
 * Structured logging
 * Required fields
@@ -451,7 +458,7 @@ The AI must verify:
 
 ### 6.2 Metrics
 
-The AI must detect:
+the auditor must detect:
 
 * Golden signal metrics
 * Dependency health metrics
@@ -459,14 +466,14 @@ The AI must detect:
 
 ### 6.3 Tracing
 
-The AI must verify:
+the auditor must verify:
 
 * Trace ID propagation
 * Cross-service correlation
 
 ### 6.4 Operability guarantees
 
-For each critical journey, the AI must find:
+For each critical journey, the auditor must find:
 
 * Canonical dashboard reference
 * Canonical trace example
@@ -480,14 +487,14 @@ Absence is **High severity**.
 
 ### 7.1 SLO-driven design
 
-The AI must verify presence of:
+the auditor must verify presence of:
 
 * SLI/SLO declarations OR explicit expectations
 * Alerting configuration references
 
 ### 7.2 Resilience patterns
 
-The AI must statically verify:
+the auditor must statically verify:
 
 * Time-outs on external calls
 * Bounded retries
@@ -495,7 +502,7 @@ The AI must statically verify:
 
 ### 7.3 Load management and back-pressure
 
-The AI must detect:
+the auditor must detect:
 
 * Rate limits
 * Queues
@@ -503,7 +510,7 @@ The AI must detect:
 
 ### 7.4 Failure-mode table
 
-The AI must locate a declared failure-mode table for critical dependencies.
+the auditor must locate a declared failure-mode table for critical dependencies.
 
 ---
 
@@ -511,11 +518,11 @@ The AI must locate a declared failure-mode table for critical dependencies.
 
 ### 8.1 Threat modelling
 
-The AI must locate threat-model artefacts for critical flows.
+the auditor must locate threat-model artefacts for critical flows.
 
 ### 8.2 Identity and isolation
 
-The AI must verify:
+the auditor must verify:
 
 * Auth enforcement at boundaries
 * Centralised authorisation logic
@@ -523,7 +530,7 @@ The AI must verify:
 
 ### 8.3 Secrets and key management
 
-The AI must detect:
+the auditor must detect:
 
 * Secret manager usage
 * Absence of hard-coded secrets
@@ -532,7 +539,7 @@ Hard-coded secrets are **Critical severity**.
 
 ### 8.4 Platform security
 
-The AI must verify:
+the auditor must verify:
 
 * Dependency locking and scanning
 * SSRF and egress constraints
@@ -541,7 +548,7 @@ The AI must verify:
 
 ### 8.5 Auditability
 
-The AI must detect:
+the auditor must detect:
 
 * Immutable audit logs for sensitive actions
 
@@ -551,7 +558,7 @@ The AI must detect:
 
 ### 9.1 Infrastructure as code
 
-The AI must verify:
+the auditor must verify:
 
 * IaC coverage
 * Absence of unmanaged infrastructure
@@ -564,14 +571,14 @@ The manifest MAY declare:
 * Expected exit codes
 * Optional coverage thresholds
 
-**AI rule:**
+**Auditor rule:**
 
 * Required commands must exist and be invokable.
 * Exit-code-only checks are allowed; coverage is optional.
 
 ### 9.3 Environment parity
 
-The AI must verify:
+the auditor must verify:
 
 * Config validation
 * Safe defaults
@@ -581,28 +588,28 @@ The AI must verify:
 
 ### 10.1 Component architecture
 
-The AI must verify:
+the auditor must verify:
 
 * Component taxonomy
 * Clear responsibility boundaries
 
 ### 10.2 State and data flow
 
-The AI must detect:
+the auditor must detect:
 
 * Centralised API clients
 * Consistent loading and error handling
 
 ### 10.3 UX, accessibility, and performance
 
-The AI must flag:
+the auditor must flag:
 
 * Obvious accessibility violations
 * Excessive bundle size growth
 
 ### 10.4 Front-end security
 
-The AI must verify:
+the auditor must verify:
 
 * Token storage strategy
 * CSP presence
@@ -614,14 +621,14 @@ The AI must verify:
 
 ### 11.1 Execution architecture
 
-The AI must verify:
+the auditor must verify:
 
 * Centralised execution gateways
 * Explicit request and response schemas
 
 ### 11.2 Governance and change safety
 
-The AI must detect:
+the auditor must detect:
 
 * Allow-listed models
 * Versioned prompts and tools
@@ -631,7 +638,7 @@ Violations are **Critical severity**.
 
 ### 11.3 Safety and evaluation
 
-The AI must verify:
+the auditor must verify:
 
 * Schema validation
 * Prompt/tool isolation
@@ -639,7 +646,7 @@ The AI must verify:
 
 ### 11.4 Cost containment
 
-The AI must detect:
+the auditor must detect:
 
 * Budget caps
 * Usage attribution per feature
@@ -650,7 +657,7 @@ The AI must detect:
 
 ### 12.1 Survivability signals
 
-The AI must detect:
+the auditor must detect:
 
 * Single-command local run documentation
 * Environment bootstrap scripts
@@ -679,7 +686,7 @@ Missing sections are **High severity**.
 
 ## 12.3 Change-risk analysis (delta-driven)
 
-For each audit run, the AI MUST classify changes since the previous run:
+For each audit run, the auditor must classify changes since the previous run:
 
 * Dependency changes
 * Schema/migration changes
@@ -687,17 +694,15 @@ For each audit run, the AI MUST classify changes since the previous run:
 * Tenancy-related changes
 * Infrastructure changes
 
-The AI MUST map changed files to affected components and journeys and emit a **risk delta summary**.
+the auditor must map changed files to affected components and journeys and emit a **risk delta summary**.
 
 ## 13) Scoring, State, and Fail Conditions
-
-Scoring, State, and Fail Conditions
 
 ### 13.1 Maturity scoring (1–5)
 
 Maturity scoring MUST be deterministic.
 
-**Default rule (unless overridden in ****``****):**
+**Default rule (unless overridden in `audit.manifest.yaml` at `checks.scoring`):**
 
 * Start each domain at score 5
 * For each **open** finding in the domain:
@@ -712,7 +717,7 @@ Maturity scoring MUST be deterministic.
 
 Accepted risks do not reduce score unless expired.
 
-**Applicability rule:** Findings from SKIPPED checks do not exist and therefore cannot affect scoring. If a domain has no applicable checks, the AI MUST report the domain score as `N/A` and exclude it from hard-fail evaluation for “domain scores 1” (unless overridden by manifest scoring rules).
+**Applicability rule:** Findings from SKIPPED checks do not exist and therefore cannot affect scoring. If a domain has no applicable checks, the auditor must report the domain score as `N/A` and exclude it from hard-fail evaluation for “domain scores 1” (unless overridden by manifest scoring rules).
 
 This makes the rule “any domain scores 1” mechanically enforceable.
 
@@ -733,10 +738,10 @@ Because the auditor is stateless, the repository is responsible for preserving a
 * `audit/history/YYYY-MM.json` — archived monthly outputs
 * `audit/suppressions.yaml` — time-bounded suppressions (see Appendix D)
 
-**AI rules:**
+**Auditor rules:**
 
-* If `audit/latest.json` is missing, the AI MUST treat the run as a baseline and emit `AUDIT_STATE_MISSING` (High severity).
-* If `audit/open_findings.yaml` is missing, the AI MUST infer lifecycle state from `audit/latest.json` and emit `OPEN_FINDINGS_MISSING` (Medium severity).
+* If `audit/latest.json` is missing, the auditor must treat the run as a baseline and emit `AUDIT_STATE_MISSING` (High severity).
+* If `audit/open_findings.yaml` is missing, the auditor must infer lifecycle state from `audit/latest.json` and emit `OPEN_FINDINGS_MISSING` (Medium severity).
 
 ### 13.3 Delta without memory (repo-based drift)
 
@@ -748,11 +753,15 @@ In enforcement mode, the auditor MUST detect gross mismatch between `audit.manif
 * The auditor MUST emit `MANIFEST_DRIFT` with evidence when:
 
   * Declared component paths no longer exist, OR
-  * Significant new entry points or dependencies appear outside declared scope
+  * Any new entry point is detected outside declared component `paths` (as defined in `audit.manifest.yaml`), OR
+  * Any new external dependency is detected that is not listed in `external_dependencies` for the owning component (or not declared globally, if you model it that way), OR
+  * Any in-scope code path imports/uses an external SDK that violates a declared allow/deny rule in `policies.forbidden_dependencies`.
+
+**Deterministic threshold (default):** “New entry point” means any route/handler/consumer/job matching a known entry-point detector that is not matched by any declared `entry_points` pattern for any component.
 
 Severity defaults to Medium and MUST escalate based on affected component criticality.
 
-The AI MUST compute deltas by comparing the current run to `audit/latest.json`.
+the auditor must compute deltas by comparing the current run to `audit/latest.json`.
 
 Findings MUST be categorised as:
 
@@ -787,7 +796,7 @@ The audit automatically fails if:
 
 ---
 
-## 14) Final Output (AI-Generated)
+## 14) Final Output (Auditor Output)
 
 ### 14.1 Executive summary
 
@@ -817,7 +826,7 @@ For each finding:
 ### 14.4 Explicit limitations
 
 * What could not be verified statically
-* Assumptions made by the AI
+* Assumptions made by the auditor during execution (e.g., bootstrap inference)
 
 ---
 
@@ -831,7 +840,7 @@ If not, the system is **not survivable** under zero-team conditions.
 
 ## Appendix A — Machine-Checkable Requirements Index
 
-For each section, the AI must maintain a checklist of required artefacts, rules, and signals. Absence or violation must map deterministically to severity levels.
+For each section, the auditor must maintain a checklist of required artefacts, rules, and signals. Absence or violation must map deterministically to severity levels.
 
 This appendix is normative: **if it cannot be checked, it cannot be trusted**.
 
@@ -843,29 +852,52 @@ To minimise inference and maximise repeatability, the repository MUST include a 
 
 * **Path:** `./audit.manifest.yaml`
 * **Purpose:** Declaratively defines components, critical journeys, trust boundaries, and enforceable policy expectations.
-* **AI rule:** The audit MUST treat the manifest as the source of truth for scope, criticality, and checks.
+* **Auditor rule:** The audit MUST treat the manifest as the source of truth for scope, criticality, and checks.
 
 ### B.1 Required structure
 
 The manifest MUST include the following top-level keys:
 
-* `manifest_version` (string)
-* `system` (object)
-* `scope` (object)
-* `components` (array)
-* `journeys` (array)
-* `policies` (object)
-* `checks` (object)
+* `manifest_version` (string)
+* `system` (object)
+* `scope` (object)
+* `components` (array)
+* `journeys` (array)
+* `policies` (object)
+* `checks` (object)
+
+### B.1.1 System schema (minimum fields)
+
+`system` MUST include:
+
+* `name` (string)
+* `description` (string)
+* `primary_user_goals` (required array of strings)
+
+`system.audit` MUST include:
+
+* `tier` (0|1|2|3)
+
+If `system.audit.tier` is missing:
+
+* Default to Tier 0
+* Emit a Medium-severity finding
+
+**Authority rule (normative):**
+
+The auditor MUST treat `system.primary_user_goals` as the sole authoritative declaration of system intent and MUST NOT infer intent from code, configuration, or traffic patterns.
+
+---
 
 **Scope selector (required)**
 
-`scope` MUST declare:
+`scope` MUST declare:
 
-* `include_paths` (array of globs)
-* `exclude_paths` (array of globs)
-* `third_party_paths` (array of globs; vendored/generated)
+* `include_paths` (array of globs)
+* `exclude_paths` (array of globs)
+* `third_party_paths` (array of globs; vendored/generated)
 
-The AI MUST NOT analyse files outside `include_paths` or inside `exclude_paths`/`third_party_paths`.
+the auditor must NOT analyse files outside `include_paths` or inside `exclude_paths`/`third_party_paths`.
 
 ### B.2 Component schema (minimum fields)
 
@@ -883,7 +915,7 @@ Each `components[]` item MUST include:
 * `criticality` (low|medium|high|critical)
 * `capabilities` (array of strings; see Appendix F)
 
-**AI rule:** If `capabilities` is missing for any component, emit `MANIFEST_CAPABILITIES_MISSING` (Medium severity) and proceed using capability inference (non-authoritative) with reduced confidence.
+**Auditor rule:** If `capabilities` is missing for any component, emit `MANIFEST_CAPABILITIES_MISSING` (Medium severity) and proceed using capability inference (non-authoritative) with reduced confidence.
 
 ### B.3 Journey schema (minimum fields)
 
@@ -899,7 +931,7 @@ Each `journeys[]` item MUST include:
 
 ### B.4 Policy expectations
 
-`policies` MUST declare expectations the AI can validate, for example:
+`policies` MUST declare expectations the auditor can validate, for example:
 
 * `forbidden_dependencies` (by pattern)
 * `required_security_headers`
@@ -940,7 +972,7 @@ checks:
 
 ```
 
-**AI rule:** If a check’s required capabilities are absent across all declared components, the check MUST be marked **SKIPPED** (not PASS), MUST be listed in output, and MUST NOT affect scoring.
+**Auditor rule:** If a check’s required capabilities are absent across all declared components, the check MUST be marked **SKIPPED** (not PASS), MUST be listed in output, and MUST NOT affect scoring.
 
 ### B.7 Example `audit.manifest.yaml`
 
@@ -1117,7 +1149,7 @@ checks:
 To make the platform survivable without hand-over, each production component MUST include a **machine-parseable component contract**.
 
 * **Purpose:** Replace tribal knowledge with a deterministic, auditable source of truth.
-* **AI rule:** Missing or non-conformant `COMPONENT.yaml` is **High severity**; missing for any `criticality: critical` component is an **automatic audit fail** (per manifest fail conditions).
+* **Auditor rule:** Missing or non-conformant `COMPONENT.yaml` is **High severity**; missing for any `criticality: critical` component is an **automatic audit fail** (per manifest fail conditions).
 
 ### C.1 File location
 
@@ -1183,7 +1215,7 @@ Each `COMPONENT.yaml` MUST include:
 
 ### C.3 Deterministic validation rules
 
-The AI MUST enforce:
+the auditor must enforce:
 
 * `component.id` matches the manifest component `id`.
 * All referenced data stores and external dependencies are declared in the manifest.
@@ -1345,7 +1377,7 @@ local_dev:
 
 ## Appendix D — Machine Check Catalogue (Deterministic Rules)
 
-This catalogue defines **what the AI checks**, **how it detects it**, and **how results are scored and compared over time**.
+This catalogue defines what the Auditor checks, how it detects it, and how results are scored and compared over time.
 
 ### D.1 Catalogue conventions
 
@@ -1362,7 +1394,7 @@ This catalogue defines **what the AI checks**, **how it detects it**, and **h
   * `PASS`: check executed and no violation detected
   * `SKIPPED`: check not applicable (required capabilities absent)
 
-**AI rule:** SKIPPED checks MUST be listed in output, MUST NOT create findings, and MUST NOT affect scoring.
+**Auditor rule:** SKIPPED checks MUST be listed in output, MUST NOT create findings, and MUST NOT affect scoring.
 
 * **Confidence rules**
 
@@ -1375,44 +1407,46 @@ This catalogue defines **what the AI checks**, **how it detects it**, and **h
 
 ### D.2 Core checks (minimum set)
 
-> The AI MUST implement at least these checks. Additional checks may be added, but may not weaken or bypass these.
+> the auditor must implement at least these checks. Additional checks may be added, but may not weaken or bypass these.
 
-| Check IDDomainWhat is checkedDetectorEvidence (proof)Default severityConfidenceDelta key |                        |                                                                       |           |                                          |                                         |        |                            |
-| ---------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------- | --------- | ---------------------------------------- | --------------------------------------- | ------ | -------------------------- |
-| MANIFEST_PRESENT                                                                         | Audit mode             | `audit.manifest.yaml` exists at repo root                             | PATH      | Path exists                              | critical                                | High   | repo:manifest              |
-| MANIFEST_SCHEMA                                                                          | Audit mode             | Manifest contains required top-level keys                             | CFG       | Parsed keys + missing list               | high                                    | High   | repo:manifest_schema       |
-| MANIFEST_CAPABILITIES_MISSING                                                            | Audit mode             | Any component missing `capabilities`                                  | CFG       | Component ids missing capabilities       | medium                                  | High   | repo:manifest_caps         |
-| MANIFEST_CAPABILITY_MISMATCH                                                             | Audit mode             | Inferred capability present in code but missing from manifest         | AST/TEXT  | Evidence of capability + component id    | medium                                  | Medium | repo:cap_mismatch          |
-| AUDIT_STATE_MISSING                                                                      | Audit mode             | `audit/latest.json` missing (baseline run)                            | PATH      | Missing path                             | high                                    | High   | repo:audit_state           |
-| AUDIT_STATE_CORRUPT                                                                      | Audit mode             | `audit/latest.json` fails integrity check (`content_hash` mismatch)   | CFG/TEXT  | Previous hash + recomputed hash mismatch | high                                    | High   | repo:audit_state_integrity |
-| AUDIT_STATE_WRITE_FAILED                                                                 | Audit mode             | Auditor cannot write `audit/latest.json`                              | TEXT      | Explicit write failure signal            | high                                    | High   | repo:audit_state_write     |
-| COMPONENTS_ENUMERABLE                                                                    | System map             | All components declared with required fields                          | CFG       | Component list + missing fields          | high                                    | High   | comp:{id}:schema           |
-| DOCS_CONTRACT_PRESENT                                                                    | Cold-start             | `docs_contract` file exists per component                             | PATH      | Missing paths list                       | high (critical comps => fail condition) | High   | comp:{id}:docs_path        |
-| DOCS_CONTRACT_SCHEMA                                                                     | Cold-start             | `COMPONENT.yaml` conforms to required schema                          | CFG       | Missing keys list                        | high                                    | High   | comp:{id}:docs_schema      |
-| DOCS_CONTRACT_CROSSREF                                                                   | Cold-start             | Docs contract references only manifest stores/deps                    | CFG       | Invalid refs list                        | high                                    | High   | comp:{id}:docs_refs        |
-| ENTRYPOINTS_MATCH                                                                        | Entry points           | Entry points in manifest map to actual code locations                 | PATH/TEXT | Unmatched patterns list                  | high                                    | Medium | comp:{id}:entrypoints      |
-| FORBIDDEN_IMPORTS                                                                        | Boundaries             | Disallowed imports absent outside allowed paths                       | AST       | Offending file paths + import symbols    | high                                    | High   | rule:{rule_id}:violations  |
-| LAYER_VIOLATIONS                                                                         | Boundaries             | Dependency graph contains forbidden edges (layer rules)               | AST/CFG   | Edge list (from → to)                    | high                                    | High   | graph:forbidden_edges      |
-| MULTI_RESP_MODULE                                                                        | Boundaries             | Module touches DB and external network without explicit orchestration | AST       | Call/import evidence                     | high                                    | Medium | comp:{id}:multi_resp       |
-| SECRETS_IN_REPO                                                                          | Security               | Hard-coded secrets detected                                           | TEXT/AST  | Snippet hash + file path                 | critical                                | High   | sec:secrets                |
-| AUTHN_ENFORCEMENT                                                                        | Security               | Auth middleware/guard exists on public boundaries                     | AST/TEXT  | Wiring evidence                          | high                                    | Medium | comp:{id}:authn            |
-| AUTHZ_CENTRALISED                                                                        | Security               | Authorisation flows through central policy                            | AST       | Call graph evidence                      | high                                    | Medium | comp:{id}:authz            |
-| TENANT_ISOLATION                                                                         | Security               | Tenant identifier enforced and propagated                             | AST/TEXT  | Enforcement points                       | high                                    | Medium | sec:tenant                 |
-| OUTBOUND_TIMEOUTS                                                                        | Reliability            | Outbound calls have explicit time-outs                                | AST/CFG   | Wrapper usage or args                    | high                                    | Medium | rel:timeouts               |
-| BOUNDED_RETRIES                                                                          | Reliability            | Retries bounded and idempotency-aware                                 | AST/CFG   | Policy config                            | high                                    | Medium | rel:retries                |
-| RATE_LIMITING                                                                            | Reliability/Security   | Rate limiting exists on public entry points                           | AST/CFG   | Middleware/config evidence               | high                                    | Medium | rel:ratelimit              |
-| IDEMPOTENCY_ASYNC                                                                        | Data/Reliability       | Consumers implement idempotency/deduplication                         | AST/CFG   | Strategy evidence                        | high                                    | Medium | data:idempotency           |
-| LOG_SCHEMA_FIELDS                                                                        | Observability          | Logging includes required fields                                      | AST/CFG   | Logger wrapper evidence                  | high                                    | Medium | obs:log_schema             |
-| PII_REDACTION                                                                            | Observability/Security | Redaction/scrubbing rules present                                     | CFG/TEXT  | Redaction config                         | high                                    | Medium | obs:redaction              |
-| TRACE_PROPAGATION                                                                        | Observability          | Trace IDs propagated and included in logs                             | AST/CFG   | Middleware evidence                      | high                                    | Medium | obs:tracing                |
-| RUNBOOK_PRESENT                                                                          | Operability            | Runbook files exist and include recovery steps                        | PATH/TEXT | Missing files; recovery heading          | high                                    | Medium | ops:runbooks               |
-| GENAI_GATEWAY_ONLY                                                                       | GenAI                  | Provider SDK imports only inside declared gateway                     | AST       | Offending imports                        | critical                                | High   | ai:gateway                 |
-| GENAI_MODEL_ALLOWLIST                                                                    | GenAI                  | Models restricted to allow-list                                       | AST/CFG   | Offending model strings                  | critical                                | High   | ai:models                  |
-| GENAI_COST_CAPS                                                                          | GenAI                  | Hard caps on tokens/cost exist                                        | CFG/TEXT  | Cap values                               | high                                    | Medium | ai:caps                    |
-| FRONTEND_CSP                                                                             | Front-end              | CSP exists and is non-trivial                                         | CFG/TEXT  | Header/meta evidence                     | high                                    | Medium | fe:csp                     |
-| BUNDLE_SIZE_DRIFT                                                                        | Front-end              | Bundle size change beyond threshold                                   | DIFF      | Size delta + threshold                   | medium                                  | High   | fe:bundle                  |
-| DEPENDENCY_DRIFT                                                                         | System map             | New external dependencies since last audit                            | DIFF      | New dependency list                      | medium (escalate by criticality)        | High   | dep:drift                  |
-| HIGH_FINDINGS_DRIFT                                                                      | Delta                  | New High/Critical findings since last audit                           | DIFF      | Delta list                               | high                                    | High   | delta:high                 |
+**Bootstrap gate rule (normative):** If `audit.manifest.yaml` is missing, the auditor MUST enter Bootstrap mode (§0.6) and MUST emit only `BOOTSTRAP_REQUIRED` as the gating finding. In this case, `MANIFEST_PRESENT` is reported as **SKIPPED (bootstrap)** and MUST NOT produce a Critical/High/Medium/Low finding.
+
+| Check ID                     | Domain                 | What is checked                                                     | Detector   | Evidence (proof)                          | Default severity                        | Confidence | Delta key                   |
+| ---------------------------- | ---------------------- | ------------------------------------------------------------------- | ---------- | ----------------------------------------- | -------------------------------------- | ---------- | --------------------------- |
+| MANIFEST_PRESENT             | Audit mode             | `audit.manifest.yaml` exists at repo root                           | PATH       | Presence/absence of `audit.manifest.yaml` | **n/a (bootstrap gate)**            | High       | repo:manifest               |
+| MANIFEST_SCHEMA              | Audit mode             | Manifest contains required top-level keys                           | CFG        | Parsed keys + missing list                | high                                   | High       | repo:manifest_schema        |
+| MANIFEST_CAPABILITIES_MISSING| Audit mode             | Any component missing `capabilities`                                | CFG        | Component ids missing capabilities        | medium                                 | High       | repo:manifest_caps          |
+| MANIFEST_CAPABILITY_MISMATCH | Audit mode             | Inferred capability present but missing from manifest               | AST/TEXT   | Evidence of capability + component id     | medium                                 | Medium     | repo:cap_mismatch           |
+| AUDIT_STATE_MISSING          | Audit mode             | `audit/latest.json` missing (baseline run)                          | PATH       | Missing path                              | high                                   | High       | repo:audit_state            |
+| AUDIT_STATE_CORRUPT          | Audit mode             | `audit/latest.json` fails integrity check (`content_hash` mismatch) | CFG/DIFF   | Previous hash + recomputed hash mismatch  | high                                   | High       | repo:audit_state_integrity  |
+| AUDIT_STATE_WRITE_FAILED     | Audit mode             | Auditor cannot write `audit/latest.json`                            | TEXT       | Explicit write failure signal             | high                                   | High       | repo:audit_state_write      |
+| COMPONENTS_ENUMERABLE        | System map             | All components declared with required fields                        | CFG        | Component list + missing fields           | high                                   | High       | comp:{id}:schema            |
+| DOCS_CONTRACT_PRESENT        | Cold-start             | `docs_contract` file exists per component                           | PATH       | Missing paths list                        | high (critical comps => fail condition)| High       | comp:{id}:docs_path         |
+| DOCS_CONTRACT_SCHEMA         | Cold-start             | `COMPONENT.yaml` conforms to required schema                        | CFG        | Missing keys list                         | high                                   | High       | comp:{id}:docs_schema       |
+| DOCS_CONTRACT_CROSSREF       | Cold-start             | Docs contract references only manifest stores/deps                  | CFG        | Invalid refs list                         | high                                   | High       | comp:{id}:docs_refs         |
+| ENTRYPOINTS_MATCH            | Entry points           | Manifest entry points map to actual code locations                  | PATH/TEXT  | Unmatched patterns list                  | high                                   | Medium     | comp:{id}:entrypoints       |
+| FORBIDDEN_IMPORTS            | Boundaries             | Disallowed imports outside allowed paths                            | AST        | Offending file paths + symbols            | high                                   | High       | rule:{rule_id}:violations   |
+| LAYER_VIOLATIONS             | Boundaries             | Dependency graph contains forbidden edges                           | AST/CFG    | Edge list (from → to)                     | high                                   | High       | graph:forbidden_edges       |
+| MULTI_RESP_MODULE            | Boundaries             | Module touches DB and network without orchestration                 | AST        | Call/import evidence                     | high                                   | Medium     | comp:{id}:multi_resp        |
+| SECRETS_IN_REPO              | Security               | Hard-coded secrets detected                                         | TEXT/AST   | Snippet hash + file path                  | critical                               | High       | sec:secrets                 |
+| AUTHN_ENFORCEMENT            | Security               | Auth middleware/guard on public boundaries                          | AST/TEXT   | Wiring evidence                           | high                                   | Medium     | comp:{id}:authn             |
+| AUTHZ_CENTRALISED            | Security               | Authorisation flows through central policy                          | AST        | Call graph evidence                      | high                                   | Medium     | comp:{id}:authz             |
+| TENANT_ISOLATION             | Security               | Tenant identifier enforced and propagated                           | AST/TEXT   | Enforcement points                       | high                                   | Medium     | sec:tenant                  |
+| OUTBOUND_TIMEOUTS            | Reliability            | Outbound calls have explicit time-outs                              | AST/CFG    | Wrapper usage or args                    | high                                   | Medium     | rel:timeouts                |
+| BOUNDED_RETRIES              | Reliability            | Retries bounded and idempotency-aware                               | AST/CFG    | Policy config                            | high                                   | Medium     | rel:retries                 |
+| RATE_LIMITING                | Reliability/Security   | Rate limiting on public entry points                                | AST/CFG    | Middleware/config evidence               | high                                   | Medium     | rel:ratelimit               |
+| IDEMPOTENCY_ASYNC            | Data/Reliability       | Consumers implement idempotency/deduplication                       | AST/CFG    | Strategy evidence                        | high                                   | Medium     | data:idempotency            |
+| LOG_SCHEMA_FIELDS            | Observability          | Logging includes required fields                                    | AST/CFG    | Logger wrapper evidence                  | high                                   | Medium     | obs:log_schema              |
+| PII_REDACTION                | Observability/Security | Redaction/scrubbing rules present                                   | CFG/TEXT   | Redaction config                         | high                                   | Medium     | obs:redaction               |
+| TRACE_PROPAGATION            | Observability          | Trace IDs propagated and included in logs                           | AST/CFG    | Middleware evidence                     | high                                   | Medium     | obs:tracing                 |
+| RUNBOOK_PRESENT              | Operability            | Runbook files exist and include recovery steps                      | PATH/TEXT  | Missing files; recovery heading          | high                                   | Medium     | ops:runbooks                |
+| GENAI_GATEWAY_ONLY           | GenAI                  | Provider SDKs only inside declared gateway                          | AST        | Offending imports                       | critical                               | High       | ai:gateway                  |
+| GENAI_MODEL_ALLOWLIST        | GenAI                  | Models restricted to allow-list                                     | AST/CFG    | Offending model strings                 | critical                               | High       | ai:models                   |
+| GENAI_COST_CAPS              | GenAI                  | Hard caps on tokens/cost exist                                      | CFG/TEXT   | Cap values                              | high                                   | Medium     | ai:caps                     |
+| FRONTEND_CSP                 | Front-end              | CSP exists and is non-trivial                                       | CFG/TEXT   | Header/meta evidence                   | high                                   | Medium     | fe:csp                      |
+| BUNDLE_SIZE_DRIFT            | Front-end              | Bundle size change beyond threshold                                 | DIFF       | Size delta + threshold                 | medium                                 | High       | fe:bundle                   |
+| DEPENDENCY_DRIFT             | System map             | New external dependencies since last audit                          | DIFF       | New dependency list                   | medium (escalate by criticality)        | High       | dep:drift                   |
+| HIGH_FINDINGS_DRIFT          | Delta                  | New High/Critical findings since last audit                         | DIFF       | Delta list                            | high                                   | High       | delta:high                  |
 
 ### D.3 Applicability and delta rules
 
@@ -1430,8 +1464,8 @@ The auditor MAY infer capabilities from code signals (e.g. route definitions →
 
 **Delta**
 
-* The AI MUST produce a **delta summary** using `audit/latest.json` as the baseline.
-* The AI MAY support suppression, but only via explicit configuration:
+* The auditor must produce a **delta summary** using `audit/latest.json` as the baseline.
+* The auditor MAY support suppression, but only via explicit configuration:
 
   * `audit/suppressions.yaml`
   * Each suppression MUST include:
@@ -1445,7 +1479,7 @@ Expired suppressions MUST be treated as violations.
 
 ### D.4 Output determinism requirements
 
-To keep periodic audits comparable, the AI MUST:
+To keep periodic audits comparable, the auditor must:
 
 * Emit stable IDs for findings using semantic targets where possible.
 
@@ -1468,7 +1502,7 @@ When adding checks:
 
 ## Appendix E — Audit State, Finding Lifecycle, and Output Contract
 
-Because the AI has no memory between runs, **state must live in the repository**. This appendix defines the required state files and the output format the AI must emit.
+Because the auditor retains no memory, **state must live in the repository**. This appendix defines the required state files and the output format the auditor must emit.
 
 ### E.1 `audit/latest.json` (required)
 
@@ -1477,7 +1511,7 @@ Because the AI has no memory between runs, **state must live in the repository*
 
 **Authority rule**
 
-* `audit/latest.json` is **AI-authored only**.
+* `audit/latest.json` is **Auditor-authored only**.
 * Humans and automation MUST NOT edit this file manually.
 * Any manual modification invalidates drift semantics and MUST be treated as corruption.
 
@@ -1555,9 +1589,9 @@ On each run, the auditor MUST:
 
 ### E.2 `audit/open_findings.yaml` (recommended)
 
-* **Purpose:** Human-curated lifecycle state so the AI does not repeatedly re-argue known items.
+* **Purpose:** Human-curated lifecycle state so the auditor does not repeatedly re-argue known items.
 * **Authority rule:** This file is **human-authored**.
-* **AI rule:** This file is authoritative for finding status when present.
+* **Auditor rule:** This file is authoritative for finding status when present.
 
 **Minimum schema**
 
@@ -1582,7 +1616,7 @@ findings:
 
 ### E.3 Output contract for “Top things to address now”
 
-The AI MUST emit a prioritised summary optimised for human action:
+the auditor must emit a prioritised summary optimised for human action:
 
 1. **Top 10 Now** — ranked list
 2. **New since last run** — subset
@@ -1590,7 +1624,7 @@ The AI MUST emit a prioritised summary optimised for human action:
 4. **Resolved**
 5. **Skipped checks** — what was not applicable and why
 
-**Default prioritisation weights (unless overridden in ****``****):**
+**Default prioritisation weights (unless overridden in `audit.manifest.yaml` at `checks.prioritisation`):**
 
 * severity_weight:
 
@@ -1619,10 +1653,10 @@ If `audit/open_findings.yaml` is absent, treat all previously present findings
 
 ### E.4 Minimal human workflow (no AI memory assumed)
 
-* Run audit → AI writes `audit/latest.json`.
+* Auditor runs → auditor writes `audit/latest.json`.
 * Human reviews “Top 10 Now”.
-* Human updates `audit/open_findings.yaml` statuses as work starts/completes.
-* Next month, AI reads both files and produces deltas and re-prioritisation.
+* Human updates `audit/open_findings.yaml` statuses.
+* Next month, the auditor reads both files and produces deltas.
 
 ---
 
@@ -1728,9 +1762,9 @@ It exists to surface **early architectural drift** without inferring intent or
 
 **Applicability rule (mandatory):**
 
-* If `MANIFEST_PRESENT` is FAIL, Appendix H MUST be **SKIPPED**.
-* If `MANIFEST_SCHEMA` is FAIL, Appendix H MUST be **SKIPPED**.
-* If `COMPONENTS_ENUMERABLE` is FAIL, Appendix H MUST be **SKIPPED**.
+* If the audit is in **Bootstrap mode** (§0.6), Appendix H MUST be **SKIPPED**.
+* If `MANIFEST_SCHEMA` is FAIL, Appendix H MUST be **SKIPPED**.
+* If `COMPONENTS_ENUMERABLE` is FAIL, Appendix H MUST be **SKIPPED**.
 
 ---
 
@@ -1852,7 +1886,7 @@ audit/emerging_primitives.json
 
 **Rules**
 
-* AI-authored only
+* Auditor-authored only
 * Read on subsequent runs if present
 * Absence MUST NOT produce findings or warnings
 
