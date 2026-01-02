@@ -1,4 +1,4 @@
-# Best-in-Class Comprehensive Platform Audit Canvas
+# Comprehensive Platform Audit Canvas
 
 **Zero-Team / Rotating-Maintainer Edition — AI-Executed, Periodic Audit (British English)**
 
@@ -73,7 +73,7 @@ Machine-readable declaration of:
 
 Every finding MUST include:
 
-* **Artifact** (file path, symbol, configuration key, dashboard reference)
+* **Artefact** (file path, symbol, configuration key, dashboard reference)
 * **Proof** (quoted value, AST match, diff, or rule violation)
 * **Impact** (security, reliability, cost, safety)
 * **Scope** (local or systemic)
@@ -618,7 +618,7 @@ The audit automatically fails if:
 
 For each finding:
 
-* Artifact
+* Artefact
 * Proof
 * Impact
 * Recommendation
@@ -682,15 +682,6 @@ The manifest MUST include the following top-level keys:
 * `third_party_paths` (array of globs; vendored/generated)
 
 The AI MUST NOT analyse files outside `include_paths` or inside `exclude_paths`/`third_party_paths`.
-
-The manifest MUST include the following top-level keys:
-
-* `manifest_version` (string)
-* `system` (object)
-* `components` (array)
-* `journeys` (array)
-* `policies` (object)
-* `checks` (object)
 
 ### B.2 Component schema (minimum fields)
 
@@ -1538,3 +1529,166 @@ audit:
 
 * Checks above the declared tier MUST be marked **SKIPPED**.
 * Hard-fail conditions apply only to checks at or below the declared tier.
+
+---
+
+## Appendix H — Emerging Primitives and Fragmentation (Advisory)
+
+This appendix defines **non-enforcing detection of emerging architectural primitives and pattern fragmentation**.
+
+It exists to surface **early architectural drift** without inferring intent or modifying policy.
+
+**Applicability rule (mandatory):**
+
+* If `MANIFEST_PRESENT` is FAIL, Appendix H MUST be **SKIPPED**.
+* If `MANIFEST_SCHEMA` is FAIL, Appendix H MUST be **SKIPPED**.
+* If `COMPONENTS_ENUMERABLE` is FAIL, Appendix H MUST be **SKIPPED**.
+
+---
+
+### H.1 Scope and guarantees
+
+This mechanism is:
+
+* Advisory only
+* Non-enforcing
+* Non-scoring
+* Non-blocking
+
+It MUST NOT:
+
+* Create findings
+* Assign severity
+* Affect domain scores
+* Trigger fail conditions
+* Modify applicability rules
+* Introduce or enforce policy
+
+Declared primitives in `audit.manifest.yaml` remain the **only enforceable primitives**.
+
+---
+
+### H.2 Eligible pattern categories
+
+The auditor MAY analyse only the following bounded categories:
+
+* Logging initialisation and usage
+* Outbound HTTP / RPC clients
+* Input validation frameworks
+* Error construction and propagation
+* Authentication / authorisation middleware
+* Database access patterns
+* GenAI invocation patterns (only if `genai` capability is declared)
+
+The auditor MUST NOT perform unconstrained similarity analysis or cross-category inference.
+
+---
+
+### H.3 Detection model (deterministic, bounded)
+
+For each eligible category, the auditor MAY:
+
+1. Identify distinct patterns using:
+
+   * Imported module or package
+   * Wrapper or factory symbol
+   * Call signature shape
+   * Configuration object shape
+
+2. Group callsites by stable pattern identifier.
+
+3. Record:
+
+   * Total callsites per pattern
+   * Components affected
+   * Change since the previous run (if baseline exists)
+
+**Rules**
+
+* Detection MUST rely on PATH, AST, or CFG signals.
+* TEXT heuristics MAY be used only where structural signals are unavailable and MUST lower confidence.
+* Whole-program inference is forbidden.
+* Pattern identifiers MUST be derived from a deterministic tuple, e.g. {category}:{import_or_symbol}:{normalised_signature}.
+
+---
+
+### H.4 Candidate surfacing thresholds
+
+A pattern MAY be surfaced as an **emerging primitive candidate** only if all of the following are true:
+
+* Appears in ≥ *N* callsites (default: 10)
+* Appears in ≥ *M* components (default: 2)
+* AND at least one of:
+
+  * Usage increased since the previous run
+  * Multiple distinct patterns exist in the same category
+
+Thresholds MAY be overridden in `audit.manifest.yaml`:
+
+```yaml
+checks:
+  emerging_primitives:
+    min_callsites: 10
+    min_components: 2
+```
+
+---
+
+### H.5 Output requirements
+
+If any candidates are surfaced, the auditor MUST emit a dedicated section:
+
+#### Emerging Primitives and Fragmentation (Advisory)
+
+For each eligible category, the output MUST include:
+
+* Category
+* Detected patterns (stable identifiers)
+* Usage counts (current and previous run, if available)
+* Components affected
+* Trend (increasing | decreasing | stable)
+* Evidence references (file paths or symbols)
+* Confidence (High | Medium | Low)
+
+No interpretation or prescriptive language is permitted.
+
+---
+
+### H.6 State persistence (optional)
+
+To support trend analysis, the auditor MAY write:
+
+```
+audit/emerging_primitives.json
+```
+
+**Rules**
+
+* AI-authored only
+* Read on subsequent runs if present
+* Absence MUST NOT produce findings or warnings
+
+---
+
+### H.7 Non-interference rules (mandatory)
+
+The auditor MUST ensure:
+
+* No enforcement occurs
+* No implicit primitive declaration occurs
+* No policy changes occur automatically
+* Promotion to an enforceable primitive requires explicit declaration in `audit.manifest.yaml`
+
+---
+
+### H.8 Interpretation boundary
+
+Surfaced candidates indicate **pattern convergence or fragmentation**, not correctness.
+
+Architectural intent remains human-declared.
+
+---
+
+### Closing rule
+
+**The auditor may observe structure. Only humans may declare it.**
