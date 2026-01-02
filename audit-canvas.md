@@ -29,6 +29,7 @@ Architecture, documentation, constraints, and runtime signals must replace peopl
 4. **Boundaries must be enforceable, not advisory**.
 5. **Drift over time is more dangerous than one-off defects**.
 6. **Audit strictness must be explicit and tiered to avoid adoption failure**.
+7. **Inference is permitted only in explicitly declared bootstrap modes and MUST NOT be authoritative.**
 
 ---
 
@@ -36,7 +37,16 @@ Architecture, documentation, constraints, and runtime signals must replace peopl
 
 ### 0.1 Audit mode
 
-This audit operates under the following model:
+This audit operates under one of two mutually exclusive modes:
+
+* **Bootstrap (Drafting) mode** — non-authoritative discovery
+* **Normal (Enforcement) mode** — authoritative, deterministic audit
+
+The active mode is determined mechanically based on the presence or absence of authoritative artefacts.
+
+---
+
+#### Normal (Enforcement) mode
 
 > **Stateless execution; state persisted in-repo.**
 >
@@ -48,7 +58,7 @@ Accordingly:
 * The repository is the sole source of historical state
 * Absence of required state reduces usefulness and is reported explicitly
 
-**AI rule:** The audit MUST read `audit/latest.json` when present. It MUST read `audit/open_findings.yaml` when present, but MUST NOT assume it exists.
+**AI rule:** The audit MUST read `audit/latest.json` when present. It MUST read `audit/open_findings.yaml` when present, but MUST NOT assume it exists.
 
 ### 0.2 Audit objective
 
@@ -103,7 +113,126 @@ For every component, the AI must be able to identify:
 * Declared change surface
 * Declared failure responsibility
 
-Absence of any of the above is a **High-severity finding**.
+Absence of any of the above is a **High-severity finding**.
+
+---
+
+### 0.6 Bootstrap mode (non-authoritative drafting)
+
+Bootstrap mode exists to remove the manual authoring deadlock while preserving long-term audit integrity.
+
+Bootstrap mode is **explicitly non-authoritative** and **cannot enforce**.
+
+#### Entry condition (mandatory)
+
+Bootstrap mode MUST activate if and only if any of the following are true:
+
+* `audit.manifest.yaml` is missing, OR
+* `audit.manifest.yaml` fails schema validation (missing required top-level keys), OR
+* `audit.manifest.yaml` exists but one or more declared `docs_contract` files are missing
+
+#### Bootstrap scope defaults (mandatory)
+
+If `audit.manifest.yaml` is missing, bootstrap discovery MUST use the following default scope:
+
+* `include_paths`: ["**/*"]
+* `exclude_paths` (minimum):
+
+  * ".git/**"
+  * "node_modules/**"
+  * "vendor/**"
+  * "third_party/**"
+  * "dist/**"
+  * "build/**"
+  * "coverage/**"
+  * ".next/**"
+  * "target/**"
+  * "bin/**"
+  * "obj/**"
+
+If `.gitignore` exists, the auditor SHOULD treat ignored paths as excluded.
+
+#### Bootstrap permissions
+
+In bootstrap mode only, the auditor MAY:
+
+* Infer probable components from directory boundaries, build artefacts, Dockerfiles, IaC modules
+* Infer entry points from routes, handlers, cron configs, and queue consumers
+* Infer data stores from ORM configs, migrations, and connection usage
+* Infer external dependencies from SDK usage, outbound calls, and infrastructure
+* Infer trust boundaries from ingress configuration and network exposure
+* Infer component capabilities (e.g. `http`, `auth`, `async`, `ui`)
+
+Inference is **for drafting only**.
+
+#### Required bootstrap outputs
+
+The auditor MUST generate all of the following:
+
+1. `audit/bootstrap.manifest.draft.yaml`
+2. `audit/bootstrap.components.draft/COMPONENT.<id>.yaml` (one per inferred component)
+3. `audit/bootstrap.report.json`
+
+#### Output transport (mandatory)
+
+If the auditor has write access, it MUST write bootstrap artefacts to the declared paths.
+
+If it lacks write access, it MUST emit the full content of each artefact inline in the final report, with explicit path labels and stable delimiters.
+
+#### Draft content requirements (mandatory) (mandatory)
+
+Every inferred field in bootstrap outputs MUST include:
+
+* `value`
+* `source` (`evidence` | `inferred`)
+* `evidence` (paths, symbols, configs)
+* `confidence` (High | Medium | Low)
+
+Fields without direct evidence MUST be tagged `source: inferred`.
+
+#### Uncertainty and questions (mandatory)
+
+Bootstrap outputs MUST include explicit blocks listing:
+
+* Unknowns
+* Ambiguities
+* Questions requiring human confirmation, including at minimum:
+
+  * System intent and primary user goals
+  * Critical journeys
+  * Component criticality levels
+  * Trust boundaries
+  * Non-functional expectations
+
+#### Enforcement gate (critical rule)
+
+Bootstrap artefacts MUST NOT be treated as authoritative.
+
+The auditor MUST:
+
+* Emit a single **High-severity** finding: `BOOTSTRAP_REQUIRED`
+* Mark all bootstrap outputs as **PROVISIONAL**
+* Refuse to perform enforcement checks
+* Refuse to compute scores or deltas
+
+Bootstrap mode produces **no enforcement failures**.
+
+#### Bootstrap mode pass/fail semantics (mandatory)
+
+In bootstrap mode, audit pass/fail status is `N/A` and hard fail conditions are not evaluated.
+
+`BOOTSTRAP_REQUIRED` is High severity but MUST NOT be treated as an enforcement failure.
+
+#### Promotion rule
+
+Bootstrap mode ends only when:
+
+* `audit/bootstrap.manifest.draft.yaml` is promoted to `audit.manifest.yaml`
+* Each drafted `COMPONENT.<id>.yaml` is moved to its declared `docs_contract` path
+
+File renaming constitutes human acceptance.
+
+---
 
 ---
 
@@ -610,6 +739,10 @@ Because the auditor is stateless, the repository is responsible for preserving a
 * If `audit/open_findings.yaml` is missing, the AI MUST infer lifecycle state from `audit/latest.json` and emit `OPEN_FINDINGS_MISSING` (Medium severity).
 
 ### 13.3 Delta without memory (repo-based drift)
+
+#### Manifest drift check (mandatory at Tier ≥ 1)
+
+In enforcement mode, the auditor MUST detect gross mismatch between `audit.manifest.yaml` declarat
 
 The AI MUST compute deltas by comparing the current run to `audit/latest.json`.
 
@@ -1524,11 +1657,19 @@ Inference MUST NOT be used to silently skip or silently apply checks.
 
 ## Appendix G — Audit Tiers (Adoption Control)
 
-To avoid adoption failure and enable incremental rollout, audits are tiered.
+Audit tiers control **what may be enforced**, never what may be observed.
 
 ### G.1 Tier definitions
 
-* **Tier 0 (Bootstrap)**
+* **Tier -1 (Bootstrap / Drafting)**
+
+  * Discovery only
+  * Inference permitted
+  * Outputs are PROVISIONAL
+  * No enforcement
+  * Single blocking finding: `BOOTSTRAP_REQUIRED`
+
+* **Tier 0 (Bootstrap Enforcement)**
 
   * Manifest present
   * Component docs present
@@ -1537,12 +1678,14 @@ To avoid adoption failure and enable incremental rollout, audits are tiered.
   * Dependency locking
   * Entrypoints match manifest
   * Audit state files
+
 * **Tier 1 (Boundaries & Security)**
 
   * Authn/authz anchors
   * Tenancy enforcement
   * CSP / security headers
   * Timeout/retry wrappers
+
 * **Tier 2 (Operability)**
 
   * Runbooks
@@ -1550,6 +1693,7 @@ To avoid adoption failure and enable incremental rollout, audits are tiered.
   * Alerts
   * Golden signals
   * Trace propagation
+
 * **Tier 3 (Resilience & Drift)**
 
   * SLOs
@@ -1558,15 +1702,13 @@ To avoid adoption failure and enable incremental rollout, audits are tiered.
   * GenAI governance
   * Bundle and dependency drift
 
-### G.2 Tier enforcement
+### G.2 Tier authority and enforcement
 
-The audit tier is declared exclusively at:
-
-`system.audit.tier`
-
-Checks above the declared tier MUST be marked **SKIPPED**.
-
-Hard-fail conditions apply only to checks at or below the declared tier.
+* Tier is declared exclusively at `system.audit.tier`.
+* Absence of tier defaults to Tier 0.
+* Tier -1 is **implicit** when bootstrap entry conditions are met and MUST NOT be explicitly declared.
+* Checks above the effective tier MUST be marked **SKIPPED**.
+* Hard-fail conditions apply only to checks at or below the effective tier.
 
 ---
 
