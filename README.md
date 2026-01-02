@@ -1,112 +1,101 @@
 # Platform Audit Canvas
 
-A tiered, deterministic, AI-executed audit system designed to make software platforms mechanically understandable, enforceably constrained, and resilient to ownership churn.
+**A deterministic audit framework with an LLM acting as a bounded execution engine, not an authority.**
 
-This repository contains the canonical specification for a periodic audit process intended to be executed by an AI against a codebase and its associated artefacts.
+A tiered, deterministic audit specification for making software platforms **mechanically understandable, enforceably constrained, and resilient to change**—even when ownership, context, and institutional memory do not persist.
 
-It is not a tool or framework.
-It is an audit instruction set.
+This repository contains the **canonical Platform Audit Canvas**: an audit instruction set designed to be executed **periodically by an automated AI agent** against a codebase and its declared artefacts.
 
----
-
-## What this is
-
-Modern software systems often become difficult to change safely long before anything visibly breaks.
-
-This can happen because systems evolve organically, because teams change, or because software is built very quickly using AI-assisted development. Code is added fast, assumptions are left implicit, and critical constraints are never written down. Over time, the system becomes hard to understand, risky to modify, and difficult to assess against security or reliability standards.
-
-This audit canvas exists to address that problem.
-
-It defines a structured, machine-checkable way for software to describe:
-- What it does
-- How it is structured
-- What rules and constraints must be respected
-
-An AI can then periodically inspect the system against those rules, record what has changed, and highlight areas where risk is increasing.
+It is **not a tool**.
+It is an **audit contract**.
 
 ---
 
-## What this is not
+## Why this exists
 
-- It is not an autonomous system
-- It does not invent standards
-- It does not rewrite code
-- It does not replace human judgement
+Modern software rarely fails all at once. It becomes unsafe to change long before anything visibly breaks.
 
-The AI applies explicitly defined checks, gathers evidence, and compares results over time. All policy, scope, and severity decisions are declared in the repository itself.
+Assumptions remain implicit. Boundaries erode. Temporary decisions harden into production paths. Documentation drifts. These risks are amplified in fast-moving, AI-accelerated development environments.
+
+Over time, systems become hard to understand, risky to modify, and difficult to assess against security, reliability, or cost expectations.
+
+The Platform Audit Canvas exists to **surface these risks early**, before they turn into incidents or irreversible loss of system understanding.
+
+---
+
+## What this is (and is not)
+
+This canvas defines a **structured, deterministic way for a repository to explain itself**.
+
+It allows a system to declare:
+
+* system intent and critical journeys
+* component boundaries and responsibilities
+* enforceable rules and constraints
+
+An automated AI agent then:
+
+* executes the audit in a stateless manner
+* gathers concrete, verifiable evidence
+* compares results across runs
+* highlights drift, violations, and increasing risk
+
+**What this is not:**
+
+* Not autonomous decision-making
+* Not policy-generating
+* Not code-rewriting
+* Not a replacement for human judgement
+
+All authority lives in the repository. The agent executes declared rules; it does not invent them.
 
 ---
 
 ## Core principles
 
-- What cannot be checked mechanically is treated as risk
-- Explicit structure is preferred over inferred intent
-- Documentation is treated as executable safety infrastructure
-- Boundaries must be enforceable, not advisory
-- Drift over time is more dangerous than one-off defects
-- Audit strictness must be tiered to enable adoption
+* What cannot be checked mechanically is treated as risk
+* Explicit structure beats inferred intent
+* Documentation is executable safety infrastructure
+* Boundaries must be enforceable, not advisory
+* Drift over time is more dangerous than one-off defects
+* Audit strictness must be tiered to enable adoption
 
 ---
 
-## How it works (high level)
+## How it works (at a glance)
 
-1. The repository declares system intent, components, boundaries, and policies using machine-readable files.
-2. An AI executes the audit periodically in a stateless manner.
-3. Audit state and findings are written back into the repository.
-4. Each run compares against previous results to detect drift.
-5. Findings are scored deterministically and prioritised.
-6. Humans remain responsible for decisions and remediation.
+1. Humans declare system intent, structure, and constraints in machine-readable artefacts.
+2. An automated AI agent executes the audit periodically and statelessly.
+3. Findings and audit state are written back into the repository.
+4. Each run compares against prior results to detect drift and change-risk.
+5. Humans review outputs and decide on remediation.
 
 The repository is the memory.
-The AI is the executor.
+The agent is the executor.
+Humans remain the authority.
 
 ---
 
-## Tiered adoption model
+## Tiered enforcement
 
-The audit is deliberately tiered to avoid adoption failure.
+Audit enforcement is intentionally **tiered**.
 
-Teams can start with basic checks such as:
-- Manifest presence
-- Component documentation
-- Secrets scanning
-- Forbidden dependencies
+The effective tier determines which checks may enforce and which are observed or skipped. Higher tiers enable stricter guarantees as system criticality increases.
 
-Stricter checks such as operability guarantees, resilience patterns, and drift analysis can be added as the system matures or becomes more critical.
+Checks above the declared tier are explicitly **skipped**, not silently passed.
 
 ---
 
-## Intended audience
+## Status and feedback
 
-This specification is intended for:
-- Product and platform leaders responsible for system quality
-- Security and reliability teams assessing risk
-- Engineers working in fast-moving or AI-assisted environments
-- Anyone responsible for maintaining software over time
+This repository contains **Version 1** of the Platform Audit Canvas.
 
-No long-term team ownership is assumed.
+It is published to invite critique, experimentation, and iteration.
 
----
-
-## Status
-
-This repository contains **Version 1** of the audit canvas.
-
-It is published to:
-- Make the approach explicit
-- Invite feedback and discussion
-- Enable experimentation and iteration
-
----
-
-## Contributing and feedback
-
-Suggestions, critiques, and improvements are welcome.
-
-Please open an issue or discussion rather than submitting direct changes, so intent and trade-offs can be reviewed explicitly.
+Feedback is welcome—please open an issue or discussion so intent and trade-offs can be reviewed explicitly.
 
 ---
 
 ## Licence
 
-This work is licensed under the Creative Commons Attribution 4.0 International Licence (CC BY 4.0).
+Licensed under the **Creative Commons Attribution 4.0 International Licence (CC BY 4.0)**.
