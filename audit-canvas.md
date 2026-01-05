@@ -27,6 +27,14 @@ Restating normative behavior outside its canonical section is forbidden.
 * ❌ “Bootstrap mode MUST emit exactly one `BOOTSTRAP_REQUIRED` finding.”
 * ✅ “Bootstrap behavior is defined canonically in §C4.”
 
+### A0.2 Executable text boundary (mandatory)
+
+Only sections explicitly labeled **(normative)** define executable requirements for the Auditor Agent.
+
+Text not labeled **(normative)** is explanatory only and MUST NOT affect execution flow, check eligibility or outcomes, scoring, deltas, pass/fail status, or interpretation of authority.
+
+In the event of any apparent conflict, text in normative sections is authoritative.
+
 ## Document intent (normative)
 
 This document is designed for **deterministic machine execution**.
