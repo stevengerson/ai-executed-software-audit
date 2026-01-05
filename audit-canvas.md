@@ -7,18 +7,32 @@ This document follows a **single-source-of-truth rule** to prevent semantic dupl
 Canonical ownership:
 
 * **Execution semantics & global guarantees** → Part A
-* **Mode selection & gating** → Parts B–D
-* **Applicability & SKIPPED semantics** → Part H
+* **Check outcome semantics (PASS / FAIL / SKIPPED)** → §A6
+* **Applicability rules (capability-based)** → Part H
+* **Mode selection (entry conditions)** → Part B
+* **Bootstrap gating semantics** → §C4
+* **Enforcement gating semantics (tiers, hard-fail)** → Part D / Part G
 * **Check definitions & catalogue** → Part I
 
-Any other section MUST reference these parts and MUST NOT restate normative rules.
+### A0.1 Canonical reference rule (mandatory)
+
+Any section that needs to rely on a rule defined elsewhere MUST reference the **canonical section ID** and MUST NOT restate the rule text.
+
+To preserve readability, sections MAY include **non-normative summaries**, provided they are explicitly labeled as such and do not introduce new requirements, conditions, or exceptions.
+
+Restating normative behavior outside its canonical section is forbidden.
+
+**Example:**
+
+* ❌ “Bootstrap mode MUST emit exactly one `BOOTSTRAP_REQUIRED` finding.”
+* ✅ “Bootstrap behavior is defined canonically in §C4.”
 
 ## Document intent (normative)
 
 This document is designed for **deterministic machine execution**.
 
 * Normative language uses **MUST / MUST NOT / SHOULD / MAY**.
-* When the document underspecifies behaviour, the Auditor Agent MUST treat it as **SKIPPED with reason** (not inferred policy).
+* Underspecification handling (including when outcomes MUST be **SKIPPED**) is defined canonically in §A6.
 
 ---
 
@@ -209,11 +223,12 @@ If fingerprint cannot be produced:
   * (b) the required authoritative anchors/inputs (Part E / Part I), AND
   * (c) deterministic proof (PATH/CFG/AST/TEXT/DIFF).
 
-Per Part A6 (Check outcome semantics), missing required anchors/inputs MUST result in **SKIPPED** (not PASS, not FAIL).
+Outcome semantics for missing inputs/anchors (including when the outcome is **SKIPPED**) are defined canonically in §A6.
 
 ## A6. Check outcome semantics (normative; canonical)
 
-This section is the **canonical** definition of PASS/FAIL/SKIPPED behavior. Other sections MUST reference this section and MUST NOT restate these rules.
+This section is the **canonical** definition of PASS/FAIL/SKIPPED behavior.
+**Non-normative note:** Other sections should reference §A6 rather than repeating outcome rules.
 
 ### A6.1 Outcomes
 
@@ -272,11 +287,9 @@ The audit runs in exactly one mode:
 
 ### Bootstrap precedence rule (normative)
 
-If bootstrap entry conditions are met (B2), the audit MUST run in Bootstrap mode regardless of any declared tier. In Bootstrap mode:
+Bootstrap mode selection and its effects are defined canonically in §C4.
 
-* Enforcement checks MUST NOT run
-* Hard-fail conditions MUST NOT be evaluated
-* Scoring and deltas MUST NOT be computed
+**Non-normative summary:** When bootstrap conditions hold, enforcement checks do not run and scoring/deltas are not computed.
 
 ## B2. Bootstrap entry conditions (mandatory)
 
@@ -349,26 +362,54 @@ If write access exists: write to these paths.
 
 If not: emit full content inline with explicit path labels and stable delimiters.
 
-## C4. Bootstrap gate finding
+## C4. Bootstrap gate finding (canonical)
 
-In bootstrap mode, the auditor MUST emit exactly one gating finding:
+This section is the **complete and canonical definition** of bootstrap gating behavior.
 
-* **High** severity `BOOTSTRAP_REQUIRED`
+### C4.1 Bootstrap mode effects (normative)
 
-And MUST:
+When the audit is running in **Bootstrap mode**:
 
-* Mark all bootstrap outputs **PROVISIONAL**
-* Refuse to run enforcement checks
-* Refuse to compute scoring or deltas
-* Set audit pass/fail status to `N/A`
+* The Auditor Agent **MUST NOT run enforcement checks**.
+* The Auditor Agent **MUST NOT evaluate hard-fail conditions**.
+* The Auditor Agent **MUST NOT compute scoring**.
+* The Auditor Agent **MUST NOT compute deltas**.
+* The audit **pass/fail status MUST be `N/A`**.
 
-### C4.1 Bootstrap blockers (non-finding; mandatory)
+These effects apply regardless of declared tier or configured checks.
 
-Bootstrap reports MUST include a dedicated section listing blockers that caused or sustain bootstrap mode.
+### C4.2 Bootstrap gating finding (normative)
 
-* This section is NOT a Findings channel.
-* It MUST include evidence refs for each blocker (paths/keys).
-* It MUST NOT assign severities or affect scoring/deltas/pass-fail.
+In Bootstrap mode, the Auditor Agent:
+
+* **MUST emit exactly one Finding**.
+* That Finding **MUST** have `finding_id = BOOTSTRAP_REQUIRED`.
+* Severity **MUST** be **High**.
+* The Finding **MUST NOT** be treated as an enforcement failure.
+* **No other Findings MAY be emitted** while in Bootstrap mode.
+
+### C4.3 Bootstrap outputs and authority (normative)
+
+All outputs produced during Bootstrap mode:
+
+* **MUST be marked `PROVISIONAL`**.
+* **MUST be non-authoritative** and **MUST NOT be treated as policy**.
+* **MUST NOT be promoted** to authoritative artefacts by the Auditor Agent.
+
+The Auditor Agent **MUST refuse promotion** of bootstrap outputs. Promotion may occur only via an external (human or AI) process, as defined elsewhere.
+
+Required bootstrap outputs and their file locations are defined in §C3; this section defines their authority and handling.
+
+### C4.4 Bootstrap blockers section (mandatory; non-finding)
+
+Bootstrap reports **MUST include** a dedicated **“bootstrap blockers”** section.
+
+This section:
+
+* **MUST list** the evidence references (paths, keys) that caused or sustain Bootstrap mode.
+* **MUST NOT** assign severities.
+* **MUST NOT** affect scoring, deltas, or pass/fail status.
+* **MUST NOT** be treated as Findings.
 
 ## C5. Promotion rule
 
@@ -671,7 +712,7 @@ Audit fails if:
 
 ## H2. Applicability rule (normative)
 
-If a check declares required capabilities and none are present across in-scope components, the check outcome MUST be **SKIPPED** per Part A6 with `skip_reason = not_applicable`. The check MUST be listed (Part A6.4) and MUST NOT affect scoring.
+If a check declares required capabilities and none are present across in-scope components, the check MUST be treated as **not applicable**. Outcome semantics, canonical `skip_reason` selection, and SKIPPED listing/scoring effects are defined canonically in §A6.
 
 Capability inference is allowed only to:
 
@@ -799,522 +840,15 @@ For checks with non-trivial semantics (e.g. authn/authz/tenancy/idempotency), de
 
 ### I7. Anchor requirements for selected checks (normative)
 
-The following checks REQUIRE manifest-declared anchors (E3). If the relevant anchors are absent, the check MUST be **SKIPPED** with reason `anchor_not_declared`.
-
-* AUTHN_ENFORCEMENT → `policies.anchors.authn.enforcement_points`
-* AUTHZ_CENTRALISED → `policies.anchors.authz.decision_points`
-* TENANT_ISOLATION → `policies.anchors.tenancy.enforcement_points`
-* OUTBOUND_TIMEOUTS → `policies.anchors.outbound.http_client_wrappers` OR `policies.anchors.outbound.timeout_config_sources`
-* BOUNDED_RETRIES → `policies.anchors.outbound.retry_config_sources`
-* RATE_LIMITING → `policies.anchors.rate_limit.enforcement_points`
-* LOG_SCHEMA_FIELDS → `policies.anchors.logging.wrapper_symbol` AND `policies.logging_schema.required_fields`
-* TRACE_PROPAGATION → `policies.anchors.tracing.propagation_points`
-
-### I8. Repo-stored metrics inputs for DIFF checks (normative)
-
-This section is the canonical definition of DIFF metric requirements. Missing metrics result in **SKIPPED** per Part A6 with `skip_reason = metric_unavailable`.
-
----
-
-## Appendix I-A — Canonical check definitions
-
-This appendix contains the **single canonical semantic definition** for each check. Definitions are additive and MAY be introduced incrementally without changing behavior.
-
----
-
-### AUTHN_ENFORCEMENT
-
-**Purpose**
-Verify that authentication guards are enforced at all declared public boundaries.
-
-**Required inputs / anchors**
-
-* `policies.anchors.authn.enforcement_points`
-
-**Applicability**
-
-* Applies only when components declare the `auth` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST/TEXT
-* Proof consists of deterministic wiring evidence showing guard invocation at each enforcement point.
-* If proof-shapes are unavailable for the repo language/framework → **SKIPPED** per Part A6 with `skip_reason = proof_shapes_unavailable`.
-
-**Failure condition**
-
-* Any declared public boundary lacks an auth guard invocation.
-
----
-
-### OUTBOUND_TIMEOUTS
-
-**Purpose**
-Ensure all outbound network calls are bounded by deterministic timeout configuration.
-
-**Required inputs / anchors**
-
-* One or more of:
-
-  * `policies.anchors.outbound.http_client_wrappers`, or
-  * `policies.anchors.outbound.timeout_config_sources`
-
-**Applicability**
-
-* Applies only when components declare the `external_calls` or `http_client` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST/CFG
-* Proof consists of:
-
-  * wrapper usage with explicit timeout arguments, or
-  * configuration values resolved via declared config sources.
-
-**Failure condition**
-
-* Any outbound callsite matched by declared outbound wrapper or config detectors lacks an enforced timeout.
-
----
-
-### AUTHZ_CENTRALISED
-
-**Purpose**
-Ensure authorization decisions are made via a single declared policy decision point.
-
-**Required inputs / anchors**
-
-* `policies.anchors.authz.decision_points`
-
-**Applicability**
-
-* Applies only when components declare the `authz` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST
-* Proof consists of deterministic call evidence showing authorization checks routed through the declared decision point.
-* If proof-shapes are unavailable → **SKIPPED** per Part A6 with `skip_reason = proof_shapes_unavailable`.
-
-**Failure condition**
-
-* Any authorization logic bypasses the declared central decision point.
-
----
-
-### TENANT_ISOLATION
-
-**Purpose**
-Verify tenant boundaries are enforced and tenant identity is consistently propagated.
-
-**Required inputs / anchors**
-
-* `policies.anchors.tenancy.enforcement_points`
-
-**Applicability**
-
-* Applies only when components declare the `multi_tenant` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST/TEXT
-* Proof consists of enforcement evidence at declared points and propagation evidence across calls.
-* If proof-shapes are unavailable → **SKIPPED** per Part A6 with `skip_reason = proof_shapes_unavailable`.
-
-**Failure condition**
-
-* Tenant identity is missing, unenforced, or dropped along any execution path.
-
----
-
-### LOG_SCHEMA_FIELDS
-
-**Purpose**
-Ensure structured logs include required fields for correlation and auditability.
-
-**Required inputs / anchors**
-
-* `policies.anchors.logging.wrapper_symbol`
-* `policies.logging_schema.required_fields`
-
-**Applicability**
-
-* Applies only when components declare the `observability` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST/CFG
-* Proof consists of logger wrapper usage and emitted field sets.
-
-**Failure condition**
-
-* Any emitted log record omits one or more required fields.
-
----
-
-### BOUNDED_RETRIES
-
-**Purpose**
-Ensure retry behavior for outbound calls is bounded, deterministic, and idempotency-aware.
-
-**Required inputs / anchors**
-
-* `policies.anchors.outbound.retry_config_sources`
-
-**Applicability**
-
-* Applies only when components declare the `external_calls` or `http_client` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST/CFG
-* Proof consists of resolved retry configuration showing:
-
-  * maximum retry count, and
-  * backoff strategy or cap.
-
-**Failure condition**
-
-* Retries are unbounded, missing configuration, or violate declared idempotency constraints.
-
----
-
-### RATE_LIMITING
-
-**Purpose**
-Ensure exposed entry points are protected by deterministic rate limiting.
-
-**Required inputs / anchors**
-
-* `policies.anchors.rate_limit.enforcement_points`
-
-**Applicability**
-
-* Applies only when components declare the `http` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST/CFG
-* Proof consists of middleware or guard wiring evidence at declared enforcement points.
-
-**Failure condition**
-
-* Any exposed entry point lacks rate limiting enforcement.
-
----
-
-### IDEMPOTENCY_ASYNC
-
-**Purpose**
-Ensure asynchronous consumers are idempotent or deduplicated to prevent replay effects.
-
-**Required inputs / anchors**
-
-* None (proof-shape dependent)
-
-**Applicability**
-
-* Applies only when components declare the `async` capability.
-
-**Detector & proof shape**
-
-* Detector: AST/CFG
-* Proof consists of one or more deterministic strategies:
-
-  * deduplication keys,
-  * idempotency tokens,
-  * explicit replay guards.
-* If proof-shapes are unavailable → **SKIPPED** per Part A6 with `skip_reason = proof_shapes_unavailable`.
-
-**Failure condition**
-
-* An async consumer processes messages without any idempotency or deduplication mechanism.
-
----
-
-### TRACE_PROPAGATION
-
-**Purpose**
-Ensure trace identifiers are propagated across service boundaries and are available in logs/telemetry.
-
-**Required inputs / anchors**
-
-* `policies.anchors.tracing.propagation_points`
-
-**Applicability**
-
-* Applies only when components declare the `observability` capability.
-* If required anchors are absent → **SKIPPED** per Part A6 with `skip_reason = anchor_not_declared`.
-
-**Detector & proof shape**
-
-* Detector: AST/CFG
-* Proof consists of deterministic middleware/wrapper evidence showing:
-
-  * extraction/injection of trace context at declared points, and
-  * optional correlation into logging wrapper where applicable.
-
-**Failure condition**
-
-* Any declared propagation point fails to extract, propagate, or inject trace context.
-
----
-
-### PII_REDACTION
-
-**Purpose**
-Ensure sensitive fields are scrubbed/redacted before logging or export.
-
-**Required inputs / anchors**
-
-* None (config/proof-shape dependent)
-
-**Applicability**
-
-* Applies only when components declare the `observability` or `data_store` capability.
-
-**Detector & proof shape**
-
-* Detector: CFG/TEXT
-* Proof consists of deterministic configuration evidence of:
-
-  * redaction rules (field patterns), and/or
-  * scrubbers/filters applied in logging/export pipelines.
-* If the repo language/framework requires proof-shapes not available → **SKIPPED** per Part A6 with `skip_reason = proof_shapes_unavailable`.
-
-**Failure condition**
-
-* No redaction/scrubbing mechanism is present where logging/export occurs.
-
----
-
-### GENAI_GATEWAY_ONLY
-
-**Purpose**
-Ensure GenAI provider SDK usage is restricted to a declared gateway boundary.
-
-**Required inputs / anchors**
-
-* None (policy-driven by component boundaries; proof-shape dependent)
-
-**Applicability**
-
-* Applies only when components declare the `genai` capability.
-
-**Detector & proof shape**
-
-* Detector: AST
-* Proof consists of deterministic import/call evidence for provider SDKs outside the gateway location(s).
-* If proof-shapes are unavailable → **SKIPPED** per Part A6 with `skip_reason = proof_shapes_unavailable`.
-
-**Failure condition**
-
-* Any provider SDK import or direct invocation occurs outside the gateway.
-
----
-
-### GENAI_MODEL_ALLOWLIST
-
-**Purpose**
-Ensure model selection is restricted to an allow-list.
-
-**Required inputs / anchors**
-
-* None (config/proof-shape dependent)
-
-**Applicability**
-
-* Applies only when components declare the `genai` capability.
-
-**Detector & proof shape**
-
-* Detector: AST/CFG
-* Proof consists of:
-
-  * an allow-list source in config, and
-  * deterministic evidence that runtime model values are constrained to it.
-
-**Failure condition**
-
-* Any model identifier is used that is not constrained to an allow-list.
-
----
-
-### GENAI_COST_CAPS
-
-**Purpose**
-Ensure token/cost limits exist to bound GenAI spend and abuse.
-
-**Required inputs / anchors**
-
-* None (config dependent)
-
-**Applicability**
-
-* Applies only when components declare the `genai` capability.
-
-**Detector & proof shape**
-
-* Detector: CFG/TEXT
-* Proof consists of deterministic configuration evidence for token and/or cost ceilings.
-
-**Failure condition**
-
-* No caps exist, or caps are effectively unbounded.
-
----
-
-### SECRETS_IN_REPO
-
-**Purpose**
-Detect hard-coded secrets committed to the repository.
-
-**Required inputs / anchors**
-
-* None
-
-**Applicability**
-
-* Applies to all components.
-
-**Detector & proof shape**
-
-* Detector: TEXT/AST
-* Proof consists of deterministic matches against secret patterns with normalized excerpts.
-
-**Failure condition**
-
-* Any hard-coded credential, token, or secret material is present in-repo.
-
----
-
-### RUNBOOK_PRESENT
-
-**Purpose**
-Ensure operational runbooks exist with recovery steps.
-
-**Required inputs / anchors**
-
-* None
-
-**Applicability**
-
-* Applies only when components declare the `operability` capability.
-
-**Detector & proof shape**
-
-* Detector: PATH/TEXT
-* Proof consists of:
-
-  * presence of runbook files, and
-  * deterministic evidence of recovery steps sections.
-
-**Failure condition**
-
-* Required runbooks are missing or lack recovery instructions.
-
----
-
-### FRONTEND_CSP
-
-**Purpose**
-Ensure a non-trivial Content Security Policy is enforced for frontend surfaces.
-
-**Required inputs / anchors**
-
-* None (config/proof-shape dependent)
-
-**Applicability**
-
-* Applies only when components declare the `ui` capability.
-
-**Detector & proof shape**
-
-* Detector: CFG/TEXT
-* Proof consists of deterministic CSP header or meta-tag configuration.
-
-**Failure condition**
-
-* CSP is missing or trivially permissive.
-
----
-
-### DEPENDENCY_DRIFT
-
-**Purpose**
-Detect newly introduced external dependencies since the last audit run.
-
-**Required inputs / anchors**
-
-* Repo-stored baseline metric: `metrics.dependencies.external_set`
-
-**Applicability**
-
-* Applies to all components.
-
-**Detector & proof shape**
-
-* Detector: DIFF
-* Proof consists of a deterministic set difference against the stored baseline.
-* If baseline metric is missing → **SKIPPED** per Part A6 with `skip_reason = metric_unavailable`.
-
-**Failure condition**
-
-* One or more new external dependencies are detected.
-
----
-
-### BUNDLE_SIZE_DRIFT
-
-**Purpose**
-Detect frontend bundle size increases beyond declared thresholds.
-
-**Required inputs / anchors**
-
-* Repo-stored baseline metric: `metrics.frontend.bundle_bytes`
-
-**Applicability**
-
-* Applies only when components declare the `frontend` or `ui` capability.
-
-**Detector & proof shape**
-
-* Detector: DIFF
-* Proof consists of deterministic size delta computation vs threshold.
-* If baseline metric is missing → **SKIPPED** per Part A6 with `skip_reason = metric_unavailable`.
-
-**Failure condition**
-
-* Bundle size increase exceeds threshold.
-
----
-
-### HIGH_FINDINGS_DRIFT
-
-**Purpose**
-Detect introduction of new High or Critical findings since the last audit.
-
-**Required inputs / anchors**
-
-* Repo-stored prior audit state: `audit/latest.json`
-
-**Applicability**
-
-* Applies in Enforcement mode only.
-
-**Detector & proof shape**
-
-* Detector: DIFF
-* Proof consists of deterministic comparison of severities across runs.
-* If prior state is missing → **SKIPPED** per Part A6 with `skip_reason = missing_authoritative_input`.
-
-**Failure condition**
-
-* One or more new High or Critical findings are detected.
+Anchor absence handling is defined canonically in §A6 and §E3.
+
+**Non-normative summary:** Checks listed below require specific anchors to execute; when anchors are absent, the check is SKIPPED.
+
+* AUTHN_ENFORCEMENT → `policies.anchors.authn.enforcement_points`
+* AUTHZ_CENTRALISED → `policies.anchors.authz.decision_points`
+* TENANT_ISOLATION → `policies.anchors.tenancy.enforcement_points`
+* OUTBOUND_TIMEOUTS → `policies.anchors.outbound.http_client_wrappers` OR `policies.anchors.outbound.timeout_config_sources`
+* BOUNDED_RETRIES → `policies.anchors.outbound.retry_config_sources`
+* RATE_LIMITING → `policies.anchors.rate_limit.enforcement_points`
+* LOG_SCHEMA_FIELDS → `policies.anchors.logging.wrapper_symbol` AND `policies.logging_schema.required_fields`
+* TRACE_PROPAGATION → `policies.anchors.tracing.propagation_points`
