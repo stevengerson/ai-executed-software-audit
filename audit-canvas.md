@@ -1,5 +1,13 @@
 # Comprehensive Platform Audit Canvas
 
+## Document intent (normative)
+This document is designed for **deterministic machine execution**.
+
+* Normative language uses **MUST / MUST NOT / SHOULD / MAY**.
+* When the document underspecifies behaviour, the Auditor Agent MUST treat it as **SKIPPED with reason** (not inferred policy).
+
+---
+
 ## Who the Auditor Agent is (execution context)
 
 **Auditor Agent** = an automated, stateless program that uses an LLM only as a **bounded execution engine**.
@@ -75,9 +83,21 @@ Every Finding MUST include:
 
 Recommendations are advisory only and MUST be traceable to the finding.
 
-## A4. Determinism contract (normative)
+## A4. Normative artefact boundary (mandatory)
+The following repository artefacts are **normative**:
 
-### A4.1 Path normalisation
+* `audit.manifest.yaml`
+* each component `docs_contract`
+* allowlists/deny-lists under `policies.*`
+* accepted-risk registries (if present)
+
+The Auditor Agent MUST NOT modify normative artefacts.
+
+The Auditor Agent MAY generate **drafts/proposals** only under `audit/**` (e.g. `audit/bootstrap.*`, `audit/proposals/**`).
+
+## A5. Determinism contract (normative)
+
+### A5.1 Path normalisation
 
 All paths used in findings/artefacts/fingerprints MUST:
 
@@ -87,7 +107,7 @@ All paths used in findings/artefacts/fingerprints MUST:
 * Remove any leading `./`
 * Resolve `..` safely without escaping the repo root
 
-### A4.2 Proof normalisation
+### A5.2 Proof normalisation
 
 Normalise before comparison:
 
@@ -97,7 +117,14 @@ Normalise before comparison:
 
 A “material proof change” is one that remains after normalisation.
 
-### A4.3 Fingerprint rules
+### A5.2.1 TEXT proof excerpt rule (mandatory)
+When a TEXT detector emits proof excerpts, excerpt selection MUST be deterministic:
+
+* Excerpt MUST be anchored to a deterministic match boundary (regex span, fixed line range, or fixed marker boundaries).
+* Excerpt MUST include the anchor plus a fixed context window (default: 2 lines before, 2 after) unless overridden by manifest `checks.proof_excerpt`.
+* If multiple matches exist, order by (path, start_offset) and include the first `K` (default: 3).
+
+### A5.3 Fingerprint rules
 
 Fingerprint derivation by detector:
 
@@ -106,19 +133,38 @@ Fingerprint derivation by detector:
 * AST: hash(tuple(path, fully-qualified symbol, semantic signature))
 * TEXT: hash(normalised excerpt)
 
+### A5.3.1 AST semantic signature minimum (mandatory)
+For AST fingerprints, the semantic signature MUST be computed deterministically and MUST include at minimum:
+
+* symbol kind (function/class/method/etc.)
+* fully-qualified name
+* arity (when applicable)
+
+If the auditor cannot compute a semantic signature for a language, it MUST set:
+
+* `semantic_signature = "UNAVAILABLE"` and `fingerprint = "UNAVAILABLE"` and `confidence = Low`
+
 If fingerprint cannot be produced:
 
 * `fingerprint = "UNAVAILABLE"`
 * `confidence = Low`
 * Emit an explicit limitation
 
-### A4.4 content_hash integrity
+### A5.4 content_hash integrity
 
 `content_hash = sha256(normalised findings[])` where findings[] are:
 
 * Sorted by `finding_id`
 * Stripped of volatile fields (timestamps, priority_score)
 * Serialised with stable key ordering
+
+### A5.5 Check execution determinism (normative)
+
+* A check MUST NOT produce a Finding unless it has:
+* (a) an applicable scope (Part H), AND
+* (b) the required authoritative anchors/inputs (Part E / Part I), AND
+* (c) deterministic proof (PATH/CFG/AST/TEXT/DIFF).
+* Missing required anchors/inputs MUST result in **SKIPPED** (not PASS, not FAIL).
 
 ---
 
@@ -144,7 +190,7 @@ If bootstrap entry conditions are met (B2), the audit MUST run in Bootstrap mode
 Bootstrap MUST activate iff any are true:
 
 * `audit.manifest.yaml` is missing, OR
-* `audit.manifest.yaml` fails schema validation (missing required top-level keys), OR
+* `audit.manifest.yaml` fails validation (see E1: required keys; optional JSON Schema), OR
 * `audit.manifest.yaml` exists but one or more declared `docs_contract` files are missing
 
 ## B3. Statelessness and repo-persisted state (Enforcement mode)
@@ -192,7 +238,11 @@ The auditor MAY infer **for drafting only**:
 * Trust boundaries from ingress/network exposure
 * Capabilities (e.g. `http`, `auth`, `async`, `ui`)
 
-All inferred fields MUST include `{value, source, evidence, confidence}` and MUST set `source: inferred` when not directly evidenced.
+All drafted fields MUST include `{value, source, evidence, confidence}`.
+
+* Use `source: evidence` when directly supported by repo artefacts.
+* Use `source: inferred` when not directly supported.
+* Fields without direct evidence MUST set `source: inferred`
 
 ## C3. Required bootstrap outputs
 
@@ -219,6 +269,14 @@ And MUST:
 * Refuse to compute scoring or deltas
 * Set audit pass/fail status to `N/A`
 
+### C4.1 Bootstrap blockers (non-finding; mandatory)
+
+Bootstrap reports MUST include a dedicated section listing blockers that caused or sustain bootstrap mode.
+
+* This section is NOT a Findings channel.
+* It MUST include evidence refs for each blocker (paths/keys).
+* It MUST NOT assign severities or affect scoring/deltas/pass-fail.
+
 ## C5. Promotion rule
 
 Bootstrap ends only when:
@@ -226,7 +284,7 @@ Bootstrap ends only when:
 * `audit/bootstrap.manifest.draft.yaml` is promoted to `audit.manifest.yaml`, AND
 * Each drafted component contract is moved to its declared `docs_contract` path
 
-Renaming/moving constitutes human acceptance.
+Renaming/moving constitutes acceptance by an external process (human or AI). The Auditor Agent MUST NOT perform promotion.
 
 ---
 
@@ -260,6 +318,10 @@ If missing:
 
 Only checks at or below the effective tier may produce hard failures.
 
+### Tier execution rule (normative)
+
+Checks above the effective tier MUST be **SKIPPED** and MUST NOT emit Findings.
+
 ---
 
 # Part E — Authoritative repository artefacts
@@ -275,6 +337,15 @@ Only checks at or below the effective tier may produce hard failures.
 * `journeys` (array)
 * `policies` (object)
 * `checks` (object)
+
+### Validation rule (normative)
+
+Manifest validation is defined as follows:
+
+* **Required-keys validation (mandatory):** `MANIFEST_SCHEMA` is FAIL if any required top-level key is missing.
+* **Optional JSON Schema validation (recommended):**
+  * If `audit/schemas/audit.manifest.schema.json` exists, the auditor MUST additionally validate the manifest against it.
+  * If schema validation fails, `MANIFEST_SCHEMA` is FAIL and the report MUST include the failing schema paths. 
 
 ### System intent (authoritative rule)
 
@@ -307,6 +378,37 @@ Each component MUST have a machine-parseable doc at `docs_contract`.
 Missing or non-conformant `COMPONENT.yaml` is High severity.
 
 Missing for any `criticality: critical` component is an automatic audit fail (per manifest fail conditions).
+
+### E3. Enforcement anchors (authoritative; recommended)
+
+To keep AST/CFG checks deterministic across languages/frameworks, the manifest SHOULD declare enforcement anchors.
+
+* Anchors are **not** policy by themselves; they are proof targets used by checks.
+* Checks that require anchors MUST be **SKIPPED** when the relevant anchor is absent.
+
+Minimum recommended structure:
+
+```yaml
+policies:
+  anchors:
+    logging:
+      wrapper_symbol: []      # e.g. [{kind: "symbol", value: "log"}]
+      required_fields_source: []  # e.g. [{kind: "config", value: "policies.logging_schema.required_fields"}]
+    tracing:
+      propagation_points: []  # middleware/wrappers
+    outbound:
+      http_client_wrappers: [] # wrapper modules/symbols
+      timeout_config_sources: []
+      retry_config_sources: []
+    authn:
+      enforcement_points: []   # middleware/guards at boundary
+    authz:
+      decision_points: []      # central policy entrypoints
+    tenancy:
+      enforcement_points: []
+    rate_limit:
+      enforcement_points: []
+```
 
 ---
 
@@ -349,6 +451,11 @@ If the auditor emits diffs:
 
 ## G1. Maturity scoring (1–5)
 
+### Domain identifier rule (normative)
+Canonical domain identifiers are defined in Part I (§I3.1).
+Any human-readable domain labels appearing elsewhere in this document or tables
+MUST be mapped deterministically by the auditor to the canonical identifiers.
+
 Applies only in Enforcement mode.
 
 **Default rule (unless overridden in `audit.manifest.yaml` under `checks.scoring`):**
@@ -364,6 +471,24 @@ Applies only in Enforcement mode.
 
 Accepted risks do not reduce score unless expired.
 
+### G1.1 Accepted-risk registry (optional, deterministic if present)
+The repo MAY provide `audit/risk_acceptance.yaml`.
+
+If present, entries MUST be matched deterministically using stable keys:
+
+* `finding_id`, OR
+* `delta_key`, OR
+* `(primary_artefact, fingerprint)`
+
+Each entry MUST include:
+
+* `accepted_by` (string)
+* `accepted_at` (date)
+* `expires_at` (date or null)
+* `reason` (string)
+
+If absent, the Auditor Agent MUST NOT infer acceptance and MUST treat all emitted findings as `status: open`.
+
 **Applicability rule:** Findings from SKIPPED checks do not exist and cannot affect scoring. If a domain has no applicable checks, report `N/A` and exclude from “domain score 1” fail condition unless overridden.
 
 ## G2. Repo audit state
@@ -376,6 +501,13 @@ Recommended:
 
 * `audit/open_findings.yaml` (human-authored)
 
+### G2.1 Status vs acceptance precedence (normative)
+If both `audit/open_findings.yaml` and `audit/risk_acceptance.yaml` exist:
+
+* `audit/open_findings.yaml` is authoritative for **finding lifecycle status** (open/resolved).
+* `audit/risk_acceptance.yaml` affects **scoring and penalty application only**.
+* The auditor MUST NOT infer status changes from acceptance entries alone.
+
 Optional:
 
 * `audit/history/YYYY-MM.json`
@@ -385,6 +517,13 @@ Rules:
 
 * If `audit/latest.json` missing: treat run as baseline; emit High `AUDIT_STATE_MISSING`.
 * If `audit/open_findings.yaml` missing: infer lifecycle state from `audit/latest.json`; emit Medium `OPEN_FINDINGS_MISSING`.
+
+### Lifecycle default rule (normative)
+
+If `audit/open_findings.yaml` is absent, then for the current run:
+
+* All emitted Findings default to `status: open`.
+* Accepted-risk penalties MUST NOT be applied (because no authoritative accepted-risk file exists). 
 
 ## G3. Delta semantics (no memory)
 
@@ -449,6 +588,16 @@ Inference MUST NOT silently apply or skip checks.
 
 * Default severities may be overridden only by manifest `checks.severity_mapping`.
 
+### I0.1 New-check introduction rule (normative)
+
+New checks (added in future auditor versions) MUST default to:
+
+* **SKIPPED** unless made applicable via:
+  * capabilities (Part H), AND
+  * required anchors/inputs (Part E3), where applicable.
+
+This prevents auditor upgrades from creating unexpected Findings without explicit enablement.
+
 ## I1. Detector types
 
 * PATH: file/directory existence, glob match
@@ -503,6 +652,65 @@ Bootstrap gate rule: if `audit.manifest.yaml` is missing, the auditor MUST enter
 | BUNDLE_SIZE_DRIFT             | Front-end            | Bundle size drift beyond threshold                    | DIFF      | Size delta + threshold             | Medium                  | High       | fe:bundle                  |
 | DEPENDENCY_DRIFT              | System map           | New external deps since last run                      | DIFF      | New deps list                      | Medium (escalate)       | High       | dep:drift                  |
 | HIGH_FINDINGS_DRIFT           | Delta                | New High/Critical findings since last run             | DIFF      | Delta list                         | High                    | High       | delta:high                 |
+
+## I3.1 Domain vocabulary (mandatory)
+Domains are a closed vocabulary used for aggregation/scoring.
+Each check MUST declare exactly one domain from:
+
+* `audit_mode`
+* `system_map`
+* `cold_start`
+* `entry_points`
+* `boundaries`
+* `security`
+* `reliability`
+* `data`
+* `observability`
+* `operability`
+* `genai`
+* `frontend`
+* `delta`
+
+Checks MAY additionally emit non-scoring `tags: []` to capture secondary concerns.
+
+### I3.1.1 Catalogue label normalisation (mandatory)
+Domain values appearing in the I3 catalogue table are human-readable labels.
+The auditor MUST map these labels deterministically to the canonical domain
+identifiers listed above (including normalising case, spacing, and punctuation).
+
+## I3.2 Catalogue normalisation rule (mandatory)
+If the catalogue table uses composite domains (e.g. "Reliability/Security"), the auditor MUST map them to a single domain + tags during execution:
+
+* Example: `domain = reliability`, `tags = [security]`.
+
+## I6. Proof-shape publication rule (mandatory)
+For checks with non-trivial semantics (e.g. authn/authz/tenancy/idempotency), deterministic proof-shapes MUST be defined in the auditor implementation.
+If a check’s proof-shapes are not available for the repo’s language/framework, the check MUST be SKIPPED with reason `proof_shapes_unavailable`.
+
+### I7. Anchor requirements for selected checks (normative)
+
+The following checks REQUIRE manifest-declared anchors (E3). If the relevant anchors are absent, the check MUST be **SKIPPED** with reason `anchor_not_declared`.
+
+* AUTHN_ENFORCEMENT → `policies.anchors.authn.enforcement_points`
+* AUTHZ_CENTRALISED → `policies.anchors.authz.decision_points`
+* TENANT_ISOLATION → `policies.anchors.tenancy.enforcement_points`
+* OUTBOUND_TIMEOUTS → `policies.anchors.outbound.http_client_wrappers` OR `policies.anchors.outbound.timeout_config_sources`
+* BOUNDED_RETRIES → `policies.anchors.outbound.retry_config_sources`
+* RATE_LIMITING → `policies.anchors.rate_limit.enforcement_points`
+* LOG_SCHEMA_FIELDS → `policies.anchors.logging.wrapper_symbol` AND `policies.logging_schema.required_fields`
+* TRACE_PROPAGATION → `policies.anchors.tracing.propagation_points`
+
+### I8. Repo-stored metrics inputs for DIFF checks (normative)
+
+DIFF checks MUST compare only repo-stored, auditor-authored metrics to preserve determinism.
+
+* The auditor SHOULD store derived metrics in `audit/latest.json` under `audit_run.metrics` (or an auditor-authored `audit/metrics.json`).
+* If the required baseline metric is missing, the DIFF check outcome MUST be **SKIPPED** with reason `metric_unavailable`.
+
+Minimum metrics:
+
+* BUNDLE_SIZE_DRIFT requires `metrics.frontend.bundle_bytes` (and an optional threshold source).
+* DEPENDENCY_DRIFT requires `metrics.dependencies.external_set` as a normalised set of strings.
 
 ---
 
