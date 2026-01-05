@@ -241,6 +241,8 @@ Record:
 * Validity horizon of results
 * Audit tier
 
+These MUST appear in the Executive Summary
+
 ## D2. Tier declaration (normative)
 
 Tier MUST be declared in `audit.manifest.yaml`:
@@ -625,10 +627,6 @@ Rules:
 ---
 
 # Closing criterion
-
-**Can a competent engineer, unfamiliar with this system, safely understand, modify, and operate it — as verified mechanically by this audit?**
-
-If not, the system is **not survivable** under zero-team conditions.
 
 **Can a competent engineer, unfamiliar with this system, safely understand, modify, and operate it — as verified mechanically by this audit?**
 
