@@ -742,7 +742,7 @@ Applies in Enforcement mode only.
 
 Maturity scoring MUST be deterministic.
 
-**Default rule (unless overridden in **``**):**
+**Default rule (unless overridden in `audit.manifest.yaml`):**
 
 * Start each domain at score 5
 * For each **open** finding in the domain:
@@ -1534,42 +1534,44 @@ This catalogue defines what the Auditor checks, how it detects it, and how resul
 
 **Bootstrap gate rule (normative):** If `audit.manifest.yaml` is missing, the auditor MUST enter Bootstrap mode (§0.6) and MUST emit only `BOOTSTRAP_REQUIRED` as the gating finding. In this case, `MANIFEST_PRESENT` is reported as **SKIPPED (bootstrap)** and MUST NOT produce a Critical/High/Medium/Low finding.
 
-| Check IDDomainWhat is checkedDetectorEvidence (proof)Default severityConfidenceDelta key |                        |                                                                     |           |                                           |                                         |        |                            |
-| ---------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------- | --------- | ----------------------------------------- | --------------------------------------- | ------ | -------------------------- |
-| MANIFEST_PRESENT                                                                         | Audit mode             | `audit.manifest.yaml` exists at repo root                           | PATH      | Presence/absence of `audit.manifest.yaml` | **n/a (bootstrap gate)**                | High   | repo:manifest              |
-| MANIFEST_SCHEMA                                                                          | Audit mode             | Manifest contains required top-level keys                           | CFG       | Parsed keys + missing list                | high                                    | High   | repo:manifest_schema       |
-| MANIFEST_CAPABILITIES_MISSING                                                            | Audit mode             | Any component missing `capabilities`                                | CFG       | Component ids missing capabilities        | medium                                  | High   | repo:manifest_caps         |
-| MANIFEST_CAPABILITY_MISMATCH                                                             | Audit mode             | Inferred capability present but missing from manifest               | AST/TEXT  | Evidence of capability + component id     | medium                                  | Medium | repo:cap_mismatch          |
-| AUDIT_STATE_MISSING                                                                      | Audit mode             | `audit/latest.json` missing (baseline run)                          | PATH      | Missing path                              | high                                    | High   | repo:audit_state           |
-| AUDIT_STATE_CORRUPT                                                                      | Audit mode             | `audit/latest.json` fails integrity check (`content_hash` mismatch) | CFG/DIFF  | Previous hash + recomputed hash mismatch  | high                                    | High   | repo:audit_state_integrity |
-| AUDIT_STATE_WRITE_FAILED                                                                 | Audit mode             | Auditor cannot write `audit/latest.json`                            | TEXT      | Explicit write failure signal             | high                                    | High   | repo:audit_state_write     |
-| COMPONENTS_ENUMERABLE                                                                    | System map             | All components declared with required fields                        | CFG       | Component list + missing fields           | high                                    | High   | comp:{id}:schema           |
-| DOCS_CONTRACT_PRESENT                                                                    | Cold-start             | `docs_contract` file exists per component                           | PATH      | Missing paths list                        | high (critical comps => fail condition) | High   | comp:{id}:docs_path        |
-| DOCS_CONTRACT_SCHEMA                                                                     | Cold-start             | `COMPONENT.yaml` conforms to required schema                        | CFG       | Missing keys list                         | high                                    | High   | comp:{id}:docs_schema      |
-| DOCS_CONTRACT_CROSSREF                                                                   | Cold-start             | Docs contract references only manifest stores/deps                  | CFG       | Invalid refs list                         | high                                    | High   | comp:{id}:docs_refs        |
-| ENTRYPOINTS_MATCH                                                                        | Entry points           | Manifest entry points map to actual code locations                  | PATH/TEXT | Unmatched patterns list                   | high                                    | Medium | comp:{id}:entrypoints      |
-| FORBIDDEN_IMPORTS                                                                        | Boundaries             | Disallowed imports outside allowed paths                            | AST       | Offending file paths + symbols            | high                                    | High   | rule:{rule_id}:violations  |
-| LAYER_VIOLATIONS                                                                         | Boundaries             | Dependency graph contains forbidden edges                           | AST/CFG   | Edge list (from → to)                     | high                                    | High   | graph:forbidden_edges      |
-| MULTI_RESP_MODULE                                                                        | Boundaries             | Module touches DB and network without orchestration                 | AST       | Call/import evidence                      | high                                    | Medium | comp:{id}:multi_resp       |
-| SECRETS_IN_REPO                                                                          | Security               | Hard-coded secrets detected                                         | TEXT/AST  | Snippet hash + file path                  | critical                                | High   | sec:secrets                |
-| AUTHN_ENFORCEMENT                                                                        | Security               | Auth middleware/guard on public boundaries                          | AST/TEXT  | Wiring evidence                           | high                                    | Medium | comp:{id}:authn            |
-| AUTHZ_CENTRALISED                                                                        | Security               | Authorisation flows through central policy                          | AST       | Call graph evidence                       | high                                    | Medium | comp:{id}:authz            |
-| TENANT_ISOLATION                                                                         | Security               | Tenant identifier enforced and propagated                           | AST/TEXT  | Enforcement points                        | high                                    | Medium | sec:tenant                 |
-| OUTBOUND_TIMEOUTS                                                                        | Reliability            | Outbound calls have explicit time-outs                              | AST/CFG   | Wrapper usage or args                     | high                                    | Medium | rel:timeouts               |
-| BOUNDED_RETRIES                                                                          | Reliability            | Retries bounded and idempotency-aware                               | AST/CFG   | Policy config                             | high                                    | Medium | rel:retries                |
-| RATE_LIMITING                                                                            | Reliability/Security   | Rate limiting on public entry points                                | AST/CFG   | Middleware/config evidence                | high                                    | Medium | rel:ratelimit              |
-| IDEMPOTENCY_ASYNC                                                                        | Data/Reliability       | Consumers implement idempotency/deduplication                       | AST/CFG   | Strategy evidence                         | high                                    | Medium | data:idempotency           |
-| LOG_SCHEMA_FIELDS                                                                        | Observability          | Logging includes required fields                                    | AST/CFG   | Logger wrapper evidence                   | high                                    | Medium | obs:log_schema             |
-| PII_REDACTION                                                                            | Observability/Security | Redaction/scrubbing rules present                                   | CFG/TEXT  | Redaction config                          | high                                    | Medium | obs:redaction              |
-| TRACE_PROPAGATION                                                                        | Observability          | Trace IDs propagated and included in logs                           | AST/CFG   | Middleware evidence                       | high                                    | Medium | obs:tracing                |
-| RUNBOOK_PRESENT                                                                          | Operability            | Runbook files exist and include recovery steps                      | PATH/TEXT | Missing files; recovery heading           | high                                    | Medium | ops:runbooks               |
-| GENAI_GATEWAY_ONLY                                                                       | GenAI                  | Provider SDKs only inside declared gateway                          | AST       | Offending imports                         | critical                                | High   | ai:gateway                 |
-| GENAI_MODEL_ALLOWLIST                                                                    | GenAI                  | Models restricted to allow-list                                     | AST/CFG   | Offending model strings                   | critical                                | High   | ai:models                  |
-| GENAI_COST_CAPS                                                                          | GenAI                  | Hard caps on tokens/cost exist                                      | CFG/TEXT  | Cap values                                | high                                    | Medium | ai:caps                    |
-| FRONTEND_CSP                                                                             | Front-end              | CSP exists and is non-trivial                                       | CFG/TEXT  | Header/meta evidence                      | high                                    | Medium | fe:csp                     |
-| BUNDLE_SIZE_DRIFT                                                                        | Front-end              | Bundle size change beyond threshold                                 | DIFF      | Size delta + threshold                    | medium                                  | High   | fe:bundle                  |
-| DEPENDENCY_DRIFT                                                                         | System map             | New external dependencies since last audit                          | DIFF      | New dependency list                       | medium (escalate by criticality)        | High   | dep:drift                  |
-| HIGH_FINDINGS_DRIFT                                                                      | Delta                  | New High/Critical findings since last audit                         | DIFF      | Delta list                                | high                                    | High   | delta:high                 |
+| Check ID | Domain | What is checked | Detector | Evidence (proof) | Default severity | Confidence | Delta key |
+| -------- | ------ | --------------- | -------- | ---------------- | ---------------- | ---------- | --------- |
+
+| ---------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------- | --------- | ----------------------------------------- | --------------------------------------- | ------ | ----------------------------- |
+| MANIFEST_PRESENT                                                                        | Audit mode             | `audit.manifest.yaml` exists at repo root                           | PATH      | Presence/absence of `audit.manifest.yaml` | **n/a (bootstrap gate)**                | High   | repo:manifest                |
+| MANIFEST_SCHEMA                                                                         | Audit mode             | Manifest contains required top-level keys                           | CFG       | Parsed keys + missing list                | high                                    | High   | repo:manifest_schema        |
+| MANIFEST_CAPABILITIES_MISSING                                                          | Audit mode             | Any component missing `capabilities`                                | CFG       | Component ids missing capabilities        | medium                                  | High   | repo:manifest_caps          |
+| MANIFEST_CAPABILITY_MISMATCH                                                           | Audit mode             | Inferred capability present but missing from manifest               | AST/TEXT  | Evidence of capability + component id     | medium                                  | Medium | repo:cap_mismatch           |
+| AUDIT_STATE_MISSING                                                                    | Audit mode             | `audit/latest.json` missing (baseline run)                          | PATH      | Missing path                              | high                                    | High   | repo:audit_state            |
+| AUDIT_STATE_CORRUPT                                                                    | Audit mode             | `audit/latest.json` fails integrity check (`content_hash` mismatch) | CFG/DIFF  | Previous hash + recomputed hash mismatch  | high                                    | High   | repo:audit_state_integrity |
+| AUDIT_STATE_WRITE_FAILED                                                              | Audit mode             | Auditor cannot write `audit/latest.json`                            | TEXT      | Explicit write failure signal             | high                                    | High   | repo:audit_state_write     |
+| COMPONENTS_ENUMERABLE                                                                   | System map             | All components declared with required fields                        | CFG       | Component list + missing fields           | high                                    | High   | comp:{id}:schema             |
+| DOCS_CONTRACT_PRESENT                                                                  | Cold-start             | `docs_contract` file exists per component                           | PATH      | Missing paths list                        | high (critical comps => fail condition) | High   | comp:{id}:docs_path         |
+| DOCS_CONTRACT_SCHEMA                                                                   | Cold-start             | `COMPONENT.yaml` conforms to required schema                        | CFG       | Missing keys list                         | high                                    | High   | comp:{id}:docs_schema       |
+| DOCS_CONTRACT_CROSSREF                                                                 | Cold-start             | Docs contract references only manifest stores/deps                  | CFG       | Invalid refs list                         | high                                    | High   | comp:{id}:docs_refs         |
+| ENTRYPOINTS_MATCH                                                                       | Entry points           | Manifest entry points map to actual code locations                  | PATH/TEXT | Unmatched patterns list                   | high                                    | Medium | comp:{id}:entrypoints        |
+| FORBIDDEN_IMPORTS                                                                       | Boundaries             | Disallowed imports outside allowed paths                            | AST       | Offending file paths + symbols            | high                                    | High   | rule:{rule_id}:violations   |
+| LAYER_VIOLATIONS                                                                        | Boundaries             | Dependency graph contains forbidden edges                           | AST/CFG   | Edge list (from → to)                     | high                                    | High   | graph:forbidden_edges       |
+| MULTI_RESP_MODULE                                                                      | Boundaries             | Module touches DB and network without orchestration                 | AST       | Call/import evidence                      | high                                    | Medium | comp:{id}:multi_resp        |
+| SECRETS_IN_REPO                                                                        | Security               | Hard-coded secrets detected                                         | TEXT/AST  | Snippet hash + file path                  | critical                                | High   | sec:secrets                  |
+| AUTHN_ENFORCEMENT                                                                       | Security               | Auth middleware/guard on public boundaries                          | AST/TEXT  | Wiring evidence                           | high                                    | Medium | comp:{id}:authn              |
+| AUTHZ_CENTRALISED                                                                       | Security               | Authorisation flows through central policy                          | AST       | Call graph evidence                       | high                                    | Medium | comp:{id}:authz              |
+| TENANT_ISOLATION                                                                        | Security               | Tenant identifier enforced and propagated                           | AST/TEXT  | Enforcement points                        | high                                    | Medium | sec:tenant                   |
+| OUTBOUND_TIMEOUTS                                                                       | Reliability            | Outbound calls have explicit time-outs                              | AST/CFG   | Wrapper usage or args                     | high                                    | Medium | rel:timeouts                 |
+| BOUNDED_RETRIES                                                                         | Reliability            | Retries bounded and idempotency-aware                               | AST/CFG   | Policy config                             | high                                    | Medium | rel:retries                  |
+| RATE_LIMITING                                                                           | Reliability/Security   | Rate limiting on public entry points                                | AST/CFG   | Middleware/config evidence                | high                                    | Medium | rel:ratelimit                |
+| IDEMPOTENCY_ASYNC                                                                       | Data/Reliability       | Consumers implement idempotency/deduplication                       | AST/CFG   | Strategy evidence                         | high                                    | Medium | data:idempotency             |
+| LOG_SCHEMA_FIELDS                                                                      | Observability          | Logging includes required fields                                    | AST/CFG   | Logger wrapper evidence                   | high                                    | Medium | obs:log_schema              |
+| PII_REDACTION                                                                           | Observability/Security | Redaction/scrubbing rules present                                   | CFG/TEXT  | Redaction config                          | high                                    | Medium | obs:redaction                |
+| TRACE_PROPAGATION                                                                       | Observability          | Trace IDs propagated and included in logs                           | AST/CFG   | Middleware evidence                       | high                                    | Medium | obs:tracing                  |
+| RUNBOOK_PRESENT                                                                         | Operability            | Runbook files exist and include recovery steps                      | PATH/TEXT | Missing files; recovery heading           | high                                    | Medium | ops:runbooks                 |
+| GENAI_GATEWAY_ONLY                                                                     | GenAI                  | Provider SDKs only inside declared gateway                          | AST       | Offending imports                         | critical                                | High   | ai:gateway                   |
+| GENAI_MODEL_ALLOWLIST                                                                  | GenAI                  | Models restricted to allow-list                                     | AST/CFG   | Offending model strings                   | critical                                | High   | ai:models                    |
+| GENAI_COST_CAPS                                                                        | GenAI                  | Hard caps on tokens/cost exist                                      | CFG/TEXT  | Cap values                                | high                                    | Medium | ai:caps                      |
+| FRONTEND_CSP                                                                            | Front-end              | CSP exists and is non-trivial                                       | CFG/TEXT  | Header/meta evidence                      | high                                    | Medium | fe:csp                       |
+| BUNDLE_SIZE_DRIFT                                                                      | Front-end              | Bundle size change beyond threshold                                 | DIFF      | Size delta + threshold                    | medium                                  | High   | fe:bundle                    |
+| DEPENDENCY_DRIFT                                                                        | System map             | New external dependencies since last audit                          | DIFF      | New dependency list                       | medium (escalate by criticality)        | High   | dep:drift                    |
+| HIGH_FINDINGS_DRIFT                                                                    | Delta                  | New High/Critical findings since last audit                         | DIFF      | Delta list                                | high                                    | High   | delta:high                   |
 
 ### D.3 Applicability and delta rules
 
@@ -1756,7 +1758,7 @@ the auditor must emit a prioritised summary optimised for human action:
 4. **Resolved**
 5. **Skipped checks** — what was not applicable and why
 
-**Default prioritisation weights (unless overridden in **``**):**
+**Default prioritisation weights (unless overridden in `audit.manifest.yaml` under `checks.prioritisation`):**
 
 * severity_weight:
 
@@ -1779,7 +1781,7 @@ the auditor must emit a prioritised summary optimised for human action:
 * boost_worsened: +30%
 * accepted_risk_penalty: −80% (ignored if expired)
 
-**Suggestion prioritisation (deterministic; unless overridden at ****``****):**
+**Suggestion prioritisation (deterministic; unless overridden in `audit.manifest.yaml`):**
 
 Suggestions are ranked separately from findings.
 
@@ -2057,20 +2059,6 @@ Architectural intent remains human-declared.
 ### Closing rule
 
 **The auditor may observe structure. Only humans may declare it.**
-
----
-
-## Appendix I — Determinism and Normalisation Rules (Normative)
-
-### I.1 Path Normalisation (Required)
-
-All paths used in findings, artefacts, and fingerprints MUST:
-
-* Be repository-relative
-* Use `/` as the path separator
-* Be case-sensitive
-* Have any leading `./` removed
-* Resolve `..` segments safely without escaping the repository root
 
 ---
 
